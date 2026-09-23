@@ -1,0 +1,6 @@
+{
+  "name": "TMT Sales Workflow & Performance Engine",
+  "description": "End-to-end sales closing, student enrollment, finance payment verification, automated attribution sync, KPI quotas, and real-time conversion pipeline.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
