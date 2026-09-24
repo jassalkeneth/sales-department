@@ -9,6 +9,8 @@ import {
   ArrowDown
 } from 'lucide-react';
 import { CloseStudentModal } from './CloseStudentModal';
+import { SortableTableHeader } from './SortableTableHeader';
+import { useSortableData } from '../hooks/useSortableData';
 
 interface KpiOverviewProps {
   onNavigateTab: (tab: string) => void;
@@ -70,9 +72,11 @@ export const KpiOverview: React.FC<KpiOverviewProps> = ({ onNavigateTab }) => {
     setFilter,
     resetFilters,
     verifyPayment,
-    currentUser,
     leads,
-    students
+    students,
+    programOptions,
+    paymentTypeOptions,
+    effectivePeriod
   } = useSalesWorkflow();
 
   const [closingLead, setClosingLead] = useState<any | null>(null);
@@ -80,24 +84,20 @@ export const KpiOverview: React.FC<KpiOverviewProps> = ({ onNavigateTab }) => {
   const pendingPayments = payments.filter((p) => p.status === 'pending');
   const verifiedPayments = filteredVerifiedPayments;
 
-  // Dynamic Trend Calculations vs Cohort/Monthly Benchmarks
-  // 1. Total Sales Trend (Baseline: $152,000 prior month)
-  const salesBaseline = 152000;
-  const salesDiffPct = ((totalVerifiedSales - salesBaseline) / salesBaseline) * 100;
-  const isSalesUp = salesDiffPct >= 0;
-
-  // 2. Conversion Rate Trend (Baseline: 29.5% prior cohort benchmark)
-  const conversionBaseline = 29.5;
-  const conversionDiff = conversionRates.overallLeadToWonRate - conversionBaseline;
-  const isConversionUp = conversionDiff >= 0;
-
-  // 3. Cash Collected Trend (Baseline: $114,000 prior month collections)
-  const collectionsBaseline = 114000;
-  const collectionsDiffPct = ((totalVerifiedCollections - collectionsBaseline) / collectionsBaseline) * 100;
-  const isCollectionsUp = collectionsDiffPct >= 0;
-
-  // 4. Pending Review Trend (SLA turnaround / queue processing status)
   const hasPending = pendingPayments.length > 0;
+
+  const {
+    sortedItems: sortedCloserPerformances,
+    sortConfig: closerSortConfig,
+    requestSort: sortClosers
+  } = useSortableData(closerPerformances, {
+    closer: (performance) => performance.closer.name,
+    booked: (performance) => performance.actualSales,
+    cash: (performance) => performance.actualCollections,
+    target: (performance) => performance.closer.quota.monthlyTarget,
+    attainment: (performance) => performance.salesAchievementPct,
+    gap: (performance) => performance.remainingSalesTarget
+  }, { key: 'attainment', direction: 'desc' });
 
   // Program Breakdown
   const programBreakdown = verifiedPayments.reduce((acc, p) => {
@@ -105,7 +105,6 @@ export const KpiOverview: React.FC<KpiOverviewProps> = ({ onNavigateTab }) => {
     return acc;
   }, {} as Record<string, number>);
 
-  const isFinanceOfficer = currentUser.role === 'finance_officer' || currentUser.role === 'sales_manager';
   const actionableLead = leads.find((l) => l.stage === 'negotiation' || l.stage === 'demo_call') || leads[0];
 
   return (
@@ -117,7 +116,7 @@ export const KpiOverview: React.FC<KpiOverviewProps> = ({ onNavigateTab }) => {
             Performance Overview
           </h1>
           <p className="text-xs text-slate-500 font-mono mt-0.5">
-            Active Cohort · Sept 2026
+            {effectivePeriod || 'No reporting period configured'}
           </p>
         </div>
 
@@ -171,11 +170,7 @@ export const KpiOverview: React.FC<KpiOverviewProps> = ({ onNavigateTab }) => {
           className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-emerald-500"
         >
           <option value="all">All programs</option>
-          <option value="AI & Data Systems Engineering">AI &amp; Data Systems</option>
-          <option value="Full-Stack Software Engineering">Full-Stack Software</option>
-          <option value="Cloud DevOps Masterclass">Cloud DevOps</option>
-          <option value="Cybersecurity Leadership">Cybersecurity</option>
-          <option value="Tech Management & Product Leadership">Tech Management</option>
+          {programOptions.map((program) => <option key={program} value={program}>{program}</option>)}
         </select>
         <select
           aria-label="Filter by payment type"
@@ -184,11 +179,7 @@ export const KpiOverview: React.FC<KpiOverviewProps> = ({ onNavigateTab }) => {
           className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-emerald-500"
         >
           <option value="all">All payment types</option>
-          <option value="Credit Card">Credit Card</option>
-          <option value="Wire Transfer">Wire Transfer</option>
-          <option value="ACH Direct Debit">ACH Direct Debit</option>
-          <option value="Financing Partner">Financing Partner</option>
-          <option value="Crypto USDC">Crypto USDC</option>
+          {paymentTypeOptions.map((paymentType) => <option key={paymentType} value={paymentType}>{paymentType}</option>)}
         </select>
         <div className="flex gap-2">
           <select
@@ -230,10 +221,10 @@ export const KpiOverview: React.FC<KpiOverviewProps> = ({ onNavigateTab }) => {
               ${totalVerifiedSales.toLocaleString()}
             </div>
             <TrendIndicator
-              type={isSalesUp ? 'up' : 'down'}
-              value={`${isSalesUp ? '+' : ''}${salesDiffPct.toFixed(1)}%`}
-              label="vs last month ($152k)"
-              isPositive={isSalesUp}
+              type={salesAchievementPct >= 100 ? 'up' : 'down'}
+              value={`${salesAchievementPct.toFixed(1)}%`}
+              label="of team sales target"
+              isPositive={salesAchievementPct >= 100}
             />
           </div>
           <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500 font-mono">
@@ -255,10 +246,10 @@ export const KpiOverview: React.FC<KpiOverviewProps> = ({ onNavigateTab }) => {
               {conversionRates.overallLeadToWonRate.toFixed(1)}%
             </div>
             <TrendIndicator
-              type={isConversionUp ? 'up' : 'down'}
-              value={`${isConversionUp ? '+' : ''}${conversionDiff.toFixed(1)}%`}
-              label="vs prior cohort (29.5%)"
-              isPositive={isConversionUp}
+              type="up"
+              value={`${students.length}`}
+              label="enrolled students"
+              isPositive
             />
           </div>
           <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500 font-mono">
@@ -280,15 +271,15 @@ export const KpiOverview: React.FC<KpiOverviewProps> = ({ onNavigateTab }) => {
               ${totalVerifiedCollections.toLocaleString()}
             </div>
             <TrendIndicator
-              type={isCollectionsUp ? 'up' : 'down'}
-              value={`${isCollectionsUp ? '+' : ''}${collectionsDiffPct.toFixed(1)}%`}
-              label="MoM vs Aug ($114k)"
-              isPositive={isCollectionsUp}
+              type={collectionAchievementPct >= 100 ? 'up' : 'down'}
+              value={`${collectionAchievementPct.toFixed(1)}%`}
+              label="of collection target"
+              isPositive={collectionAchievementPct >= 100}
             />
           </div>
           <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500 font-mono">
             <span>Verified in Bank</span>
-            <span className="text-emerald-700 font-semibold">100% Settled</span>
+            <span className="text-emerald-700 font-semibold">Verified Records</span>
           </div>
         </div>
 
@@ -307,8 +298,8 @@ export const KpiOverview: React.FC<KpiOverviewProps> = ({ onNavigateTab }) => {
             </div>
             <TrendIndicator
               type={hasPending ? 'down' : 'up'}
-              value={hasPending ? '-5.2%' : '+100%'}
-              label={hasPending ? 'clearance pace vs SLA' : 'SLA queue cleared'}
+              value={pendingPayments.length.toLocaleString()}
+              label="payments awaiting review"
               isPositive={!hasPending}
             />
           </div>
@@ -355,20 +346,20 @@ export const KpiOverview: React.FC<KpiOverviewProps> = ({ onNavigateTab }) => {
             </button>
           </div>
 
-          <div className="overflow-x-auto">
+          <div className="data-table-scroll">
             <table className="w-full text-left text-xs">
               <thead>
                 <tr className="border-b border-slate-200 text-slate-500 font-medium bg-slate-50/50">
-                  <th className="py-2.5 px-3">Closer</th>
-                  <th className="py-2.5 px-3 text-right">Booked</th>
-                  <th className="py-2.5 px-3 text-right">Cash</th>
-                  <th className="py-2.5 px-3 text-right">Target</th>
-                  <th className="py-2.5 px-3 text-center">Attainment</th>
-                  <th className="py-2.5 px-3 text-right">Gap</th>
+                  <SortableTableHeader label="Closer" sortKey="closer" sortConfig={closerSortConfig} onSort={sortClosers} className="py-2.5 px-3" />
+                  <SortableTableHeader label="Booked" sortKey="booked" sortConfig={closerSortConfig} onSort={sortClosers} align="right" className="py-2.5 px-3" />
+                  <SortableTableHeader label="Cash" sortKey="cash" sortConfig={closerSortConfig} onSort={sortClosers} align="right" className="py-2.5 px-3" />
+                  <SortableTableHeader label="Target" sortKey="target" sortConfig={closerSortConfig} onSort={sortClosers} align="right" className="py-2.5 px-3" />
+                  <SortableTableHeader label="Attainment" sortKey="attainment" sortConfig={closerSortConfig} onSort={sortClosers} align="center" className="py-2.5 px-3" />
+                  <SortableTableHeader label="Gap" sortKey="gap" sortConfig={closerSortConfig} onSort={sortClosers} align="right" className="py-2.5 px-3" />
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 font-mono">
-                {closerPerformances.map((perf) => {
+                {sortedCloserPerformances.map((perf) => {
                   const isLeader = perf.rank === 1;
                   const is100 = perf.salesAchievementPct >= 100;
 
@@ -473,14 +464,12 @@ export const KpiOverview: React.FC<KpiOverviewProps> = ({ onNavigateTab }) => {
                       <div className="font-bold font-mono text-amber-700 tabular-nums">
                         ${p.amount.toLocaleString()}
                       </div>
-                      {isFinanceOfficer && (
-                        <button
-                          onClick={() => verifyPayment(p.id, 'Verified via dashboard')}
-                          className="mt-1 px-2.5 py-0.5 text-[10px] font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded shadow-xs transition-colors"
-                        >
-                          Verify
-                        </button>
-                      )}
+                      <button
+                        onClick={() => verifyPayment(p.id, 'Verified via dashboard')}
+                        className="mt-1 px-2.5 py-0.5 text-[10px] font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded shadow-xs transition-colors"
+                      >
+                        Verify
+                      </button>
                     </div>
                   </div>
                 ))}

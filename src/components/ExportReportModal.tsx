@@ -26,7 +26,8 @@ export const ExportReportModal: React.FC<ExportReportModalProps> = ({ onClose })
     salesAchievementPct,
     closerPerformances,
     filteredVerifiedPayments,
-    filter
+    filter,
+    effectivePeriod
   } = useSalesWorkflow();
 
   const [downloadSuccess, setDownloadSuccess] = useState<string | null>(null);
@@ -220,7 +221,7 @@ export const ExportReportModal: React.FC<ExportReportModalProps> = ({ onClose })
         <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 font-mono text-xs text-slate-700">
           <div className="flex items-center justify-between text-slate-500 font-sans text-xs border-b border-slate-200 pb-2 mb-2 font-medium">
             <span>Executive Snapshot Summary</span>
-            <span>Effective: September 2026</span>
+            <span>Effective: {effectivePeriod || 'Not configured'}</span>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
             <div className="p-2.5 rounded-lg bg-white border border-slate-200">

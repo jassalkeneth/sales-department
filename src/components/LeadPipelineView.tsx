@@ -13,7 +13,8 @@ export const LeadPipelineView: React.FC = () => {
     closers,
     addLead,
     updateLeadStage,
-    conversionRates
+    conversionRates,
+    programOptions
   } = useSalesWorkflow();
 
   const [selectedCloserFilter, setSelectedCloserFilter] = useState<string>('all');
@@ -24,9 +25,9 @@ export const LeadPipelineView: React.FC = () => {
   const [newFullName, setNewFullName] = useState('');
   const [newEmail, setNewEmail] = useState('');
   const [newPhone, setNewPhone] = useState('');
-  const [newProgram, setNewProgram] = useState<ProgramType>('AI & Data Systems Engineering');
-  const [newDealValue, setNewDealValue] = useState(8000);
-  const [newSource, setNewSource] = useState<any>('Inbound Web');
+  const [newProgram, setNewProgram] = useState<ProgramType>('');
+  const [newDealValue, setNewDealValue] = useState(0);
+  const [newSource, setNewSource] = useState('');
   const [newCloserId, setNewCloserId] = useState(closers[0]?.id || '');
 
   const filteredLeads = leads.filter((l) => {
@@ -43,23 +44,27 @@ export const LeadPipelineView: React.FC = () => {
     { stage: 'closed_won', title: 'Closed Won' }
   ];
 
-  const handleAddLeadSubmit = (e: React.FormEvent) => {
+  const handleAddLeadSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    addLead({
+    const assignedCloserId = newCloserId || closers[0]?.id;
+    if (!assignedCloserId || !newProgram || !newSource) return;
+    const lead = await addLead({
       fullName: newFullName,
       email: newEmail,
       phone: newPhone,
       targetProgram: newProgram,
-      assignedCloserId: newCloserId || closers[0].id,
+      assignedCloserId,
       stage: 'new_lead',
       estimatedDealValue: Number(newDealValue),
       source: newSource
     });
 
-    setIsAddLeadOpen(false);
-    setNewFullName('');
-    setNewEmail('');
-    setNewPhone('');
+    if (lead) {
+      setIsAddLeadOpen(false);
+      setNewFullName('');
+      setNewEmail('');
+      setNewPhone('');
+    }
   };
 
   return (
@@ -276,17 +281,25 @@ export const LeadPipelineView: React.FC = () => {
               </div>
               <div>
                 <label className="block text-slate-700 font-medium mb-1">Program</label>
-                <select
+                <input
+                  required
+                  list="lead-program-options"
                   value={newProgram}
                   onChange={(e) => setNewProgram(e.target.value as ProgramType)}
                   className="w-full p-2 rounded-lg border border-slate-200 bg-white text-slate-900 focus:outline-none focus:border-emerald-500"
-                >
-                  <option value="AI & Data Systems Engineering">AI &amp; Data Systems</option>
-                  <option value="Full-Stack Software Engineering">Full-Stack Software</option>
-                  <option value="Cloud DevOps Masterclass">Cloud DevOps</option>
-                  <option value="Cybersecurity Leadership">Cybersecurity</option>
-                  <option value="Tech Management & Product Leadership">Tech Management</option>
-                </select>
+                />
+                <datalist id="lead-program-options">
+                  {programOptions.map((program) => <option key={program} value={program} />)}
+                </datalist>
+              </div>
+              <div>
+                <label className="block text-slate-700 font-medium mb-1">Source</label>
+                <input
+                  required
+                  value={newSource}
+                  onChange={(e) => setNewSource(e.target.value)}
+                  className="w-full p-2 rounded-lg border border-slate-200 bg-white text-slate-900 focus:outline-none focus:border-emerald-500"
+                />
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <div>
@@ -305,6 +318,7 @@ export const LeadPipelineView: React.FC = () => {
                     onChange={(e) => setNewCloserId(e.target.value)}
                     className="w-full p-2 rounded-lg border border-slate-200 bg-white text-slate-900 focus:outline-none focus:border-emerald-500"
                   >
+                    <option value="">Select a closer</option>
                     {closers.map((c) => (
                       <option key={c.id} value={c.id}>
                         {c.name}

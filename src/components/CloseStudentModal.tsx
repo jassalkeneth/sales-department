@@ -14,20 +14,20 @@ export const CloseStudentModal: React.FC<CloseStudentModalProps> = ({
   onClose,
   onSuccess
 }) => {
-  const { closeStudentAndEnroll, closers } = useSalesWorkflow();
+  const { closeStudentAndEnroll, closers, programOptions, paymentTypeOptions } = useSalesWorkflow();
 
   const [fullName, setFullName] = useState(lead.fullName);
   const [email, setEmail] = useState(lead.email);
   const [phone, setPhone] = useState(lead.phone);
   const [program, setProgram] = useState<ProgramType>(lead.targetProgram);
   const [tier, setTier] = useState<'Standard' | 'Premium' | 'Elite Cohort'>('Premium');
-  const [totalContractValue, setTotalContractValue] = useState<number>(lead.estimatedDealValue || 7500);
+  const [totalContractValue, setTotalContractValue] = useState<number>(lead.estimatedDealValue || 0);
   const [paymentPlan, setPaymentPlan] = useState<'Full Upfront' | '2-Part Installment' | '3-Part Installment' | 'Income Share Option'>('Full Upfront');
 
   // Initial Payment Info
-  const [initialAmount, setInitialAmount] = useState<number>(lead.estimatedDealValue || 7500);
-  const [paymentType, setPaymentType] = useState<PaymentType>('Credit Card');
-  const [transactionRef, setTransactionRef] = useState(`TXN-${Math.floor(10000 + Math.random() * 90000)}`);
+  const [initialAmount, setInitialAmount] = useState<number>(lead.estimatedDealValue || 0);
+  const [paymentType, setPaymentType] = useState<PaymentType>(paymentTypeOptions[0] || '');
+  const [transactionRef, setTransactionRef] = useState('');
   const [notes, setNotes] = useState('');
 
   // Handle plan change to recalculate suggested initial payment
@@ -55,10 +55,10 @@ export const CloseStudentModal: React.FC<CloseStudentModalProps> = ({
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    closeStudentAndEnroll(
+    const result = await closeStudentAndEnroll(
       lead.id,
       {
         fullName,
@@ -77,8 +77,10 @@ export const CloseStudentModal: React.FC<CloseStudentModalProps> = ({
       }
     );
 
-    if (onSuccess) onSuccess();
-    onClose();
+    if (result) {
+      if (onSuccess) onSuccess();
+      onClose();
+    }
   };
 
   const assignedCloser = closers.find((c) => c.id === lead.assignedCloserId) || closers[0];
@@ -160,17 +162,16 @@ export const CloseStudentModal: React.FC<CloseStudentModalProps> = ({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-slate-700 font-medium mb-1">Enrolled Program</label>
-              <select
+              <input
+                required
+                list="enrollment-program-options"
                 value={program}
                 onChange={(e) => setProgram(e.target.value as ProgramType)}
                 className="w-full p-2 text-xs rounded-lg border border-slate-200 bg-white text-slate-900 focus:outline-none focus:border-emerald-500"
-              >
-                <option value="AI & Data Systems Engineering">AI &amp; Data Systems Engineering</option>
-                <option value="Full-Stack Software Engineering">Full-Stack Software Engineering</option>
-                <option value="Cloud DevOps Masterclass">Cloud DevOps Masterclass</option>
-                <option value="Cybersecurity Leadership">Cybersecurity Leadership</option>
-                <option value="Tech Management & Product Leadership">Tech Management &amp; Product Leadership</option>
-              </select>
+              />
+              <datalist id="enrollment-program-options">
+                {programOptions.map((option) => <option key={option} value={option} />)}
+              </datalist>
             </div>
             <div>
               <label className="block text-slate-700 font-medium mb-1">Program Tier</label>
@@ -236,17 +237,16 @@ export const CloseStudentModal: React.FC<CloseStudentModalProps> = ({
 
               <div>
                 <label className="block text-slate-600 font-medium mb-1">Payment Channel</label>
-                <select
+                <input
+                  required
+                  list="payment-channel-options"
                   value={paymentType}
                   onChange={(e) => setPaymentType(e.target.value as PaymentType)}
                   className="w-full p-2 text-xs rounded-lg border border-slate-200 bg-white text-slate-900 focus:outline-none focus:border-emerald-500"
-                >
-                  <option value="Credit Card">Credit Card</option>
-                  <option value="Wire Transfer">Wire Transfer</option>
-                  <option value="ACH Direct Debit">ACH Direct Debit</option>
-                  <option value="Financing Partner">Financing Partner</option>
-                  <option value="Crypto USDC">Crypto USDC</option>
-                </select>
+                />
+                <datalist id="payment-channel-options">
+                  {paymentTypeOptions.map((option) => <option key={option} value={option} />)}
+                </datalist>
               </div>
 
               <div>

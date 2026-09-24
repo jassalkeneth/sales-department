@@ -8,6 +8,8 @@ import {
   ChevronRight,
   X
 } from 'lucide-react';
+import { SortableTableHeader } from './SortableTableHeader';
+import { useSortableData } from '../hooks/useSortableData';
 
 export const StudentAttributionLedger: React.FC = () => {
   const {
@@ -17,7 +19,8 @@ export const StudentAttributionLedger: React.FC = () => {
     filteredVerifiedPayments,
     filter,
     setFilter,
-    resetFilters
+    resetFilters,
+    programOptions
   } = useSalesWorkflow();
 
   const [selectedStudent, setSelectedStudent] = useState<StudentEnrollment | null>(null);
@@ -67,11 +70,39 @@ export const StudentAttributionLedger: React.FC = () => {
     });
   }, [studentRows, filter]);
 
+  const {
+    sortedItems: sortedStudentRows,
+    sortConfig: studentSortConfig,
+    requestSort: sortStudents
+  } = useSortableData(filteredRows, {
+    student: (row) => row.student.fullName,
+    enrolledAt: (row) => new Date(row.student.enrolledAt),
+    closer: (row) => row.closer.name,
+    program: (row) => row.student.program,
+    verifiedCash: (row) => row.verifiedCollected,
+    paymentPlan: (row) => row.student.paymentPlan,
+    tier: (row) => row.student.tier,
+    verifiedAt: (row) => row.latestVerifiedAt ? new Date(row.latestVerifiedAt) : null,
+    contractValue: (row) => row.student.totalContractValue
+  });
+
   // Selected student payments detail
   const studentDetailPayments = useMemo(() => {
     if (!selectedStudent) return [];
     return payments.filter((p) => p.studentId === selectedStudent.id);
   }, [selectedStudent, payments]);
+
+  const {
+    sortedItems: sortedStudentDetailPayments,
+    sortConfig: detailSortConfig,
+    requestSort: sortStudentDetails
+  } = useSortableData(studentDetailPayments, {
+    transactionRef: (payment) => payment.transactionRef,
+    paymentType: (payment) => payment.paymentType,
+    amount: (payment) => payment.amount,
+    status: (payment) => payment.status,
+    verifiedBy: (payment) => payment.verifiedBy || ''
+  });
 
   return (
     <div className="space-y-6">
@@ -134,11 +165,7 @@ export const StudentAttributionLedger: React.FC = () => {
             className="w-full p-2 text-xs rounded-lg border border-slate-200 bg-white text-slate-900 truncate focus:outline-none focus:border-emerald-500"
           >
             <option value="all">All Programs</option>
-            <option value="AI & Data Systems Engineering">AI &amp; Data Systems</option>
-            <option value="Full-Stack Software Engineering">Full-Stack Software</option>
-            <option value="Cloud DevOps Masterclass">Cloud DevOps</option>
-            <option value="Cybersecurity Leadership">Cybersecurity</option>
-            <option value="Tech Management & Product Leadership">Tech Management</option>
+            {programOptions.map((program) => <option key={program} value={program}>{program}</option>)}
           </select>
         </div>
 
@@ -163,19 +190,19 @@ export const StudentAttributionLedger: React.FC = () => {
 
       {/* Main Attribution Table */}
       <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden shadow-xs">
-        <div className="overflow-x-auto">
+        <div className="data-table-scroll">
           <table className="w-full text-left text-xs">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50 text-slate-600 font-semibold">
-                <th className="py-3 px-4">Student</th>
-                <th className="py-3 px-4">Enrollment Date</th>
-                <th className="py-3 px-4">Assigned Closer</th>
-                <th className="py-3 px-4">Program</th>
-                <th className="py-3 px-4 text-right">Verified Cash</th>
-                <th className="py-3 px-4">Payment Plan</th>
-                <th className="py-3 px-4 text-center">Tier</th>
-                <th className="py-3 px-4 text-right">Verified Date</th>
-                <th className="py-3 px-4 text-right">Verified Sale</th>
+                <SortableTableHeader label="Student" sortKey="student" sortConfig={studentSortConfig} onSort={sortStudents} className="py-3 px-4" />
+                <SortableTableHeader label="Enrollment Date" sortKey="enrolledAt" sortConfig={studentSortConfig} onSort={sortStudents} className="py-3 px-4" />
+                <SortableTableHeader label="Assigned Closer" sortKey="closer" sortConfig={studentSortConfig} onSort={sortStudents} className="py-3 px-4" />
+                <SortableTableHeader label="Program" sortKey="program" sortConfig={studentSortConfig} onSort={sortStudents} className="py-3 px-4" />
+                <SortableTableHeader label="Verified Cash" sortKey="verifiedCash" sortConfig={studentSortConfig} onSort={sortStudents} align="right" className="py-3 px-4" />
+                <SortableTableHeader label="Payment Plan" sortKey="paymentPlan" sortConfig={studentSortConfig} onSort={sortStudents} className="py-3 px-4" />
+                <SortableTableHeader label="Tier" sortKey="tier" sortConfig={studentSortConfig} onSort={sortStudents} align="center" className="py-3 px-4" />
+                <SortableTableHeader label="Verified Date" sortKey="verifiedAt" sortConfig={studentSortConfig} onSort={sortStudents} align="right" className="py-3 px-4" />
+                <SortableTableHeader label="Verified Sale" sortKey="contractValue" sortConfig={studentSortConfig} onSort={sortStudents} align="right" className="py-3 px-4" />
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 font-mono">
@@ -186,7 +213,7 @@ export const StudentAttributionLedger: React.FC = () => {
                   </td>
                 </tr>
               ) : (
-                filteredRows.map((row) => {
+                sortedStudentRows.map((row) => {
                   const s = row.student;
                   const isVerifiedEligible = row.isEligibleForSales;
 
@@ -303,19 +330,19 @@ export const StudentAttributionLedger: React.FC = () => {
               Associated Finance Payment Records ({studentDetailPayments.length})
             </h4>
 
-            <div className="rounded-xl border border-slate-200 overflow-hidden mb-4">
+            <div className="data-table-scroll rounded-xl border border-slate-200 mb-4">
               <table className="w-full text-left text-xs font-mono">
                 <thead className="bg-slate-50 text-slate-600 border-b border-slate-200">
                   <tr>
-                    <th className="py-2 px-3 font-sans font-semibold">Txn Ref</th>
-                    <th className="py-2 px-3 font-sans font-semibold">Channel</th>
-                    <th className="py-2 px-3 font-sans font-semibold text-right">Amount</th>
-                    <th className="py-2 px-3 font-sans font-semibold text-center">Status</th>
-                    <th className="py-2 px-3 font-sans font-semibold">Verified By</th>
+                    <SortableTableHeader label="Txn Ref" sortKey="transactionRef" sortConfig={detailSortConfig} onSort={sortStudentDetails} className="py-2 px-3 font-sans font-semibold" />
+                    <SortableTableHeader label="Channel" sortKey="paymentType" sortConfig={detailSortConfig} onSort={sortStudentDetails} className="py-2 px-3 font-sans font-semibold" />
+                    <SortableTableHeader label="Amount" sortKey="amount" sortConfig={detailSortConfig} onSort={sortStudentDetails} align="right" className="py-2 px-3 font-sans font-semibold" />
+                    <SortableTableHeader label="Status" sortKey="status" sortConfig={detailSortConfig} onSort={sortStudentDetails} align="center" className="py-2 px-3 font-sans font-semibold" />
+                    <SortableTableHeader label="Verified By" sortKey="verifiedBy" sortConfig={detailSortConfig} onSort={sortStudentDetails} className="py-2 px-3 font-sans font-semibold" />
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 text-slate-800">
-                  {studentDetailPayments.map((p) => (
+                  {sortedStudentDetailPayments.map((p) => (
                     <tr key={p.id} className="hover:bg-slate-50/70">
                       <td className="py-2 px-3 text-slate-900 font-semibold">{p.transactionRef}</td>
                       <td className="py-2 px-3 font-sans text-slate-700">{p.paymentType}</td>

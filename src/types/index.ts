@@ -9,19 +9,9 @@ export interface User {
   closerId?: string; // for closers
 }
 
-export type ProgramType =
-  | 'Full-Stack Software Engineering'
-  | 'AI & Data Systems Engineering'
-  | 'Cloud DevOps Masterclass'
-  | 'Cybersecurity Leadership'
-  | 'Tech Management & Product Leadership';
+export type ProgramType = string;
 
-export type PaymentType =
-  | 'Credit Card'
-  | 'Wire Transfer'
-  | 'ACH Direct Debit'
-  | 'Financing Partner'
-  | 'Crypto USDC';
+export type PaymentType = string;
 
 export type PaymentStatus = 'pending' | 'verified' | 'rejected' | 'refunded';
 
@@ -43,7 +33,7 @@ export interface Lead {
   assignedCloserId: string;
   stage: LeadStage;
   estimatedDealValue: number;
-  source: 'Inbound Web' | 'Executive Webinar' | 'Alumni Referral' | 'LinkedIn Outreach' | 'Tech Conference';
+  source: string;
   createdAt: string;
   notes?: string;
   lastActivityAt: string;
@@ -89,7 +79,7 @@ export interface CloserQuota {
   closerId: string;
   monthlyTarget: number; // Target booked sales ($)
   collectionTarget: number; // Target cash collected ($)
-  effectivePeriod: string; // e.g. "September 2026"
+  effectivePeriod: string;
   baseCommissionPct: number; // e.g. 10%
   acceleratorPct: number; // e.g. 15% when >100%
 }

@@ -1,27 +1,40 @@
 import React, { useState } from 'react';
 import { useSalesWorkflow } from '../context/SalesWorkflowContext';
 import { CloserPerformance } from '../types';
-import {
-  Settings,
-  UserCheck
-} from 'lucide-react';
+import { Settings } from 'lucide-react';
+import { SortableTableHeader } from './SortableTableHeader';
+import { useSortableData } from '../hooks/useSortableData';
 
 export const CloserPerformanceView: React.FC = () => {
   const {
     closerPerformances,
     updateCloserQuota,
-    currentUser,
-    setCurrentUser,
-    users
+    effectivePeriod
   } = useSalesWorkflow();
 
   const [editingCloserPerf, setEditingCloserPerf] = useState<CloserPerformance | null>(null);
   const [targetMonthlySales, setTargetMonthlySales] = useState<number>(0);
   const [targetCollections, setTargetCollections] = useState<number>(0);
-  const [baseCommPct, setBaseCommPct] = useState<number>(10);
-  const [accCommPct, setAccCommPct] = useState<number>(15);
+  const [baseCommPct, setBaseCommPct] = useState<number>(0);
+  const [accCommPct, setAccCommPct] = useState<number>(0);
 
-  const isSalesManager = currentUser.role === 'sales_manager';
+  const {
+    sortedItems: sortedCloserPerformances,
+    sortConfig,
+    requestSort
+  } = useSortableData(closerPerformances, {
+    closer: (performance) => performance.closer.name,
+    actualSales: (performance) => performance.actualSales,
+    remainingSales: (performance) => performance.remainingSalesTarget,
+    actualCollections: (performance) => performance.actualCollections,
+    remainingCollections: (performance) => performance.remainingCollectionTarget,
+    quotaProgress: (performance) => performance.salesAchievementPct,
+    avgDeal: (performance) => performance.avgSaleValue,
+    premiumRatio: (performance) => performance.closedDealsCount > 0
+      ? performance.premiumStudentsCount / performance.closedDealsCount
+      : 0,
+    commission: (performance) => performance.estimatedCommissions
+  }, { key: 'quotaProgress', direction: 'desc' });
 
   const handleOpenEdit = (perf: CloserPerformance) => {
     setEditingCloserPerf(perf);
@@ -31,11 +44,11 @@ export const CloserPerformanceView: React.FC = () => {
     setAccCommPct(perf.closer.quota.acceleratorPct);
   };
 
-  const handleSaveQuota = (e: React.FormEvent) => {
+  const handleSaveQuota = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingCloserPerf) return;
 
-    updateCloserQuota(
+    await updateCloserQuota(
       editingCloserPerf.closer.id,
       Number(targetMonthlySales),
       Number(targetCollections),
@@ -44,11 +57,6 @@ export const CloserPerformanceView: React.FC = () => {
     );
 
     setEditingCloserPerf(null);
-  };
-
-  const switchToManager = () => {
-    const mgr = users.find((u) => u.role === 'sales_manager') || users[0];
-    setCurrentUser(mgr);
   };
 
   return (
@@ -61,7 +69,7 @@ export const CloserPerformanceView: React.FC = () => {
               Closer Performance &amp; Quota Engine
             </h2>
             <span className="px-2 py-0.5 text-xs font-mono font-semibold rounded bg-purple-50 text-purple-800 border border-purple-200">
-              September 2026 Cohort
+              {effectivePeriod || 'Current period'}
             </span>
           </div>
           <p className="text-xs text-slate-500 mt-0.5">
@@ -69,15 +77,6 @@ export const CloserPerformanceView: React.FC = () => {
           </p>
         </div>
 
-        {!isSalesManager && (
-          <button
-            onClick={switchToManager}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-purple-900 bg-purple-50 border border-purple-300 rounded-lg hover:bg-purple-100 transition-colors shadow-xs"
-          >
-            <UserCheck className="h-3.5 w-3.5" />
-            <span>Switch to Sales Manager to Edit Quotas</span>
-          </button>
-        )}
       </div>
 
       {/* Podium Cards Top 3 */}
@@ -125,15 +124,13 @@ export const CloserPerformanceView: React.FC = () => {
                   </div>
                 </div>
 
-                {isSalesManager && (
-                  <button
-                    onClick={() => handleOpenEdit(perf)}
-                    className="p-1.5 rounded-lg text-slate-400 hover:text-slate-900 hover:bg-white/80 transition-colors"
-                    title="Configure Quota"
-                  >
-                    <Settings className="h-4 w-4" />
-                  </button>
-                )}
+                <button
+                  onClick={() => handleOpenEdit(perf)}
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-slate-900 hover:bg-white/80 transition-colors"
+                  title="Configure Quota"
+                >
+                  <Settings className="h-4 w-4" />
+                </button>
               </div>
 
               {/* Metrics Grid */}
@@ -200,24 +197,24 @@ export const CloserPerformanceView: React.FC = () => {
           </div>
         </div>
 
-        <div className="overflow-x-auto">
+        <div className="data-table-scroll">
           <table className="w-full text-left text-xs">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50 text-slate-600 font-semibold">
-                <th className="py-3 px-4">Closer</th>
-                <th className="py-3 px-4 text-right">Actual Booked</th>
-                <th className="py-3 px-4 text-right">Remaining Sales</th>
-                <th className="py-3 px-4 text-right">Verified Cash</th>
-                <th className="py-3 px-4 text-right">Remaining Cash</th>
-                <th className="py-3 px-4 text-center">Quota Progress</th>
-                <th className="py-3 px-4 text-right">Avg Deal</th>
-                <th className="py-3 px-4 text-right">Premium Ratio</th>
-                <th className="py-3 px-4 text-right">Commission</th>
-                {isSalesManager && <th className="py-3 px-4 text-center">Config</th>}
+                <SortableTableHeader label="Closer" sortKey="closer" sortConfig={sortConfig} onSort={requestSort} className="py-3 px-4" />
+                <SortableTableHeader label="Actual Booked" sortKey="actualSales" sortConfig={sortConfig} onSort={requestSort} align="right" className="py-3 px-4" />
+                <SortableTableHeader label="Remaining Sales" sortKey="remainingSales" sortConfig={sortConfig} onSort={requestSort} align="right" className="py-3 px-4" />
+                <SortableTableHeader label="Verified Cash" sortKey="actualCollections" sortConfig={sortConfig} onSort={requestSort} align="right" className="py-3 px-4" />
+                <SortableTableHeader label="Remaining Cash" sortKey="remainingCollections" sortConfig={sortConfig} onSort={requestSort} align="right" className="py-3 px-4" />
+                <SortableTableHeader label="Quota Progress" sortKey="quotaProgress" sortConfig={sortConfig} onSort={requestSort} align="center" className="py-3 px-4" />
+                <SortableTableHeader label="Avg Deal" sortKey="avgDeal" sortConfig={sortConfig} onSort={requestSort} align="right" className="py-3 px-4" />
+                <SortableTableHeader label="Premium Ratio" sortKey="premiumRatio" sortConfig={sortConfig} onSort={requestSort} align="right" className="py-3 px-4" />
+                <SortableTableHeader label="Commission" sortKey="commission" sortConfig={sortConfig} onSort={requestSort} align="right" className="py-3 px-4" />
+                <th className="py-3 px-4 text-center">Config</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 font-mono">
-              {closerPerformances.map((perf) => (
+              {sortedCloserPerformances.map((perf) => (
                 <tr key={perf.closer.id} className="hover:bg-slate-50/70 transition-colors">
                   <td className="py-3.5 px-4 font-sans">
                     <div className="flex items-center gap-2.5">
@@ -284,16 +281,14 @@ export const CloserPerformanceView: React.FC = () => {
                     ${Math.round(perf.estimatedCommissions).toLocaleString()}
                   </td>
 
-                  {isSalesManager && (
-                    <td className="py-3.5 px-4 text-center font-sans">
-                      <button
-                        onClick={() => handleOpenEdit(perf)}
-                        className="px-2 py-1 text-xs text-slate-700 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 rounded transition-colors"
-                      >
-                        Edit
-                      </button>
-                    </td>
-                  )}
+                  <td className="py-3.5 px-4 text-center font-sans">
+                    <button
+                      onClick={() => handleOpenEdit(perf)}
+                      className="px-2 py-1 text-xs text-slate-700 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 rounded transition-colors"
+                    >
+                      Edit
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>

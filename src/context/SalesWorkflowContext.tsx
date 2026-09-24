@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import {
-  User,
   Closer,
   Lead,
   StudentEnrollment,
@@ -13,20 +12,12 @@ import {
   PaymentType,
   ProgramType
 } from '../types';
-import {
-  INITIAL_USERS,
-  INITIAL_CLOSERS,
-  INITIAL_LEADS,
-  INITIAL_STUDENTS,
-  INITIAL_PAYMENTS,
-  INITIAL_SYNC_EVENTS,
-  INITIAL_AUDIT_LOGS
-} from '../data/initialData';
+import { salesApi } from '../api/salesApi';
 
 interface SalesWorkflowContextType {
-  currentUser: User;
-  setCurrentUser: (user: User) => void;
-  users: User[];
+  isLoading: boolean;
+  connectionError: string | null;
+  refreshData: () => Promise<void>;
   
   // Entities
   closers: Closer[];
@@ -35,6 +26,9 @@ interface SalesWorkflowContextType {
   payments: PaymentRecord[];
   syncEvents: SalesSyncEvent[];
   auditLogs: VerificationAuditLog[];
+  programOptions: ProgramType[];
+  paymentTypeOptions: PaymentType[];
+  effectivePeriod: string | null;
   filteredVerifiedPayments: PaymentRecord[];
 
   // Filters
@@ -72,8 +66,8 @@ interface SalesWorkflowContextType {
   };
 
   // Workflow Handlers
-  addLead: (lead: Omit<Lead, 'id' | 'createdAt' | 'lastActivityAt'>) => Lead;
-  updateLeadStage: (leadId: string, stage: LeadStage) => void;
+  addLead: (lead: Omit<Lead, 'id' | 'createdAt' | 'lastActivityAt'>) => Promise<Lead | null>;
+  updateLeadStage: (leadId: string, stage: LeadStage) => Promise<void>;
   closeStudentAndEnroll: (
     leadId: string,
     studentData: {
@@ -91,18 +85,25 @@ interface SalesWorkflowContextType {
       transactionRef: string;
       notes?: string;
     }
-  ) => { studentId: string; paymentId: string };
+  ) => Promise<{ studentId: string; paymentId: string } | null>;
   
-  verifyPayment: (paymentId: string, notes?: string) => void;
-  rejectPayment: (paymentId: string, reason: string) => void;
+  addPayment: (payment: {
+    studentId: string;
+    amount: number;
+    paymentType: PaymentType;
+    transactionRef: string;
+    notes?: string;
+  }) => Promise<PaymentRecord | null>;
+  verifyPayment: (paymentId: string, notes?: string) => Promise<void>;
+  rejectPayment: (paymentId: string, reason: string) => Promise<void>;
   updateCloserQuota: (
     closerId: string,
     monthlyTarget: number,
     collectionTarget: number,
     baseCommissionPct?: number,
     acceleratorPct?: number
-  ) => void;
-  resetToDefaults: () => void;
+  ) => Promise<void>;
+  resetToDefaults: () => Promise<void>;
   
   // Notification toast
   toastMessage: { title: string; desc: string; type: 'success' | 'info' | 'alert' } | null;
@@ -111,58 +112,27 @@ interface SalesWorkflowContextType {
 
 const SalesWorkflowContext = createContext<SalesWorkflowContextType | null>(null);
 
-const STORAGE_PREFIX = 'tmt_sales_v1_';
-
 export const SalesWorkflowProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // Authentication & Users
-  const [users] = useState<User[]>(INITIAL_USERS);
-  const [currentUser, setCurrentUser] = useState<User>(() => {
-    const saved = localStorage.getItem(`${STORAGE_PREFIX}currentUser`);
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch (e) {
-        console.error(e);
-      }
-    }
-    return INITIAL_USERS[0]; // Default to Executive Sales Manager
-  });
+  const [isLoading, setIsLoading] = useState(true);
+  const [connectionError, setConnectionError] = useState<string | null>(null);
 
   // Closers & Quotas
-  const [closers, setClosers] = useState<Closer[]>(() => {
-    const saved = localStorage.getItem(`${STORAGE_PREFIX}closers`);
-    return saved ? JSON.parse(saved) : INITIAL_CLOSERS;
-  });
+  const [closers, setClosers] = useState<Closer[]>([]);
 
   // Leads
-  const [leads, setLeads] = useState<Lead[]>(() => {
-    const saved = localStorage.getItem(`${STORAGE_PREFIX}leads`);
-    return saved ? JSON.parse(saved) : INITIAL_LEADS;
-  });
+  const [leads, setLeads] = useState<Lead[]>([]);
 
   // Students
-  const [students, setStudents] = useState<StudentEnrollment[]>(() => {
-    const saved = localStorage.getItem(`${STORAGE_PREFIX}students`);
-    return saved ? JSON.parse(saved) : INITIAL_STUDENTS;
-  });
+  const [students, setStudents] = useState<StudentEnrollment[]>([]);
 
   // Finance Payments
-  const [payments, setPayments] = useState<PaymentRecord[]>(() => {
-    const saved = localStorage.getItem(`${STORAGE_PREFIX}payments`);
-    return saved ? JSON.parse(saved) : INITIAL_PAYMENTS;
-  });
+  const [payments, setPayments] = useState<PaymentRecord[]>([]);
 
   // Sales Sync Log
-  const [syncEvents, setSyncEvents] = useState<SalesSyncEvent[]>(() => {
-    const saved = localStorage.getItem(`${STORAGE_PREFIX}syncEvents`);
-    return saved ? JSON.parse(saved) : INITIAL_SYNC_EVENTS;
-  });
+  const [syncEvents, setSyncEvents] = useState<SalesSyncEvent[]>([]);
 
   // Verification Audit Logs
-  const [auditLogs, setAuditLogs] = useState<VerificationAuditLog[]>(() => {
-    const saved = localStorage.getItem(`${STORAGE_PREFIX}auditLogs`);
-    return saved ? JSON.parse(saved) : INITIAL_AUDIT_LOGS;
-  });
+  const [auditLogs, setAuditLogs] = useState<VerificationAuditLog[]>([]);
 
   // Filters State
   const initialFilter: FilterState = {
@@ -193,34 +163,62 @@ export const SalesWorkflowProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const dismissToast = () => setToastMessage(null);
 
-  // Persist State Changes
-  useEffect(() => {
-    localStorage.setItem(`${STORAGE_PREFIX}currentUser`, JSON.stringify(currentUser));
-  }, [currentUser]);
+  const applyDashboardData = (data: Awaited<ReturnType<typeof salesApi.loadDashboard>>) => {
+    setClosers(data.closers);
+    setLeads(data.leads);
+    setStudents(data.students);
+    setPayments(data.payments);
+    setSyncEvents(data.syncEvents);
+    setAuditLogs(data.auditLogs);
+  };
+
+  const refreshData = async () => {
+    setIsLoading(true);
+    try {
+      applyDashboardData(await salesApi.loadDashboard());
+      setConnectionError(null);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unable to reach the sales API.';
+      setConnectionError(message);
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
-    localStorage.setItem(`${STORAGE_PREFIX}closers`, JSON.stringify(closers));
-  }, [closers]);
+    let isMounted = true;
+    salesApi.loadDashboard()
+      .then((data) => {
+        if (!isMounted) return;
+        applyDashboardData(data);
+        setConnectionError(null);
+      })
+      .catch((error) => {
+        if (!isMounted) return;
+        setConnectionError(error instanceof Error ? error.message : 'Unable to reach the sales API.');
+      })
+      .finally(() => {
+        if (isMounted) setIsLoading(false);
+      });
 
-  useEffect(() => {
-    localStorage.setItem(`${STORAGE_PREFIX}leads`, JSON.stringify(leads));
-  }, [leads]);
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
-  useEffect(() => {
-    localStorage.setItem(`${STORAGE_PREFIX}students`, JSON.stringify(students));
-  }, [students]);
+  const programOptions = useMemo(() => Array.from(new Set([
+    ...leads.map((lead) => lead.targetProgram),
+    ...students.map((student) => student.program),
+    ...payments.map((payment) => payment.program)
+  ])).sort(), [leads, payments, students]);
 
-  useEffect(() => {
-    localStorage.setItem(`${STORAGE_PREFIX}payments`, JSON.stringify(payments));
-  }, [payments]);
+  const paymentTypeOptions = useMemo(
+    () => Array.from(new Set(payments.map((payment) => payment.paymentType))).sort(),
+    [payments]
+  );
 
-  useEffect(() => {
-    localStorage.setItem(`${STORAGE_PREFIX}syncEvents`, JSON.stringify(syncEvents));
-  }, [syncEvents]);
-
-  useEffect(() => {
-    localStorage.setItem(`${STORAGE_PREFIX}auditLogs`, JSON.stringify(auditLogs));
-  }, [auditLogs]);
+  const effectivePeriod = closers.find((closer) => closer.quota.effectivePeriod)?.quota.effectivePeriod || null;
 
   // Compute Verified and Filtered Datasets
   const allVerifiedPayments = useMemo(() => {
@@ -482,31 +480,30 @@ export const SalesWorkflowProvider: React.FC<{ children: React.ReactNode }> = ({
   }, [funnelCounts, totalLeadsCount]);
 
   // Actions
-  const addLead = (leadData: Omit<Lead, 'id' | 'createdAt' | 'lastActivityAt'>): Lead => {
-    const newLead: Lead = {
-      ...leadData,
-      id: `lead-${Date.now().toString().slice(-4)}`,
-      createdAt: new Date().toISOString(),
-      lastActivityAt: new Date().toISOString()
-    };
-    setLeads((prev) => [newLead, ...prev]);
-    showToast('New Lead Captured', `${newLead.fullName} added to pipeline.`, 'info');
-    return newLead;
+  const addLead = async (leadData: Omit<Lead, 'id' | 'createdAt' | 'lastActivityAt'>): Promise<Lead | null> => {
+    try {
+      const newLead = await salesApi.createLead(leadData);
+      setLeads((previous) => [newLead, ...previous]);
+      showToast('New Lead Captured', `${newLead.fullName} added to the backend pipeline.`, 'info');
+      return newLead;
+    } catch (error) {
+      showToast('Lead Not Saved', error instanceof Error ? error.message : 'The API request failed.', 'alert');
+      return null;
+    }
   };
 
-  const updateLeadStage = (leadId: string, stage: LeadStage) => {
-    setLeads((prev) =>
-      prev.map((l) =>
-        l.id === leadId
-          ? { ...l, stage, lastActivityAt: new Date().toISOString() }
-          : l
-      )
-    );
-    showToast('Pipeline Updated', `Lead moved to ${stage.replace('_', ' ').toUpperCase()}`, 'info');
+  const updateLeadStage = async (leadId: string, stage: LeadStage): Promise<void> => {
+    try {
+      const updatedLead = await salesApi.updateLeadStage(leadId, stage);
+      setLeads((previous) => previous.map((lead) => lead.id === leadId ? updatedLead : lead));
+      showToast('Pipeline Updated', `Lead moved to ${stage.replace('_', ' ').toUpperCase()}`, 'info');
+    } catch (error) {
+      showToast('Pipeline Not Updated', error instanceof Error ? error.message : 'The API request failed.', 'alert');
+    }
   };
 
   // STEP 1 & 2: Closer Closes Student & Submits to Finance System
-  const closeStudentAndEnroll = (
+  const closeStudentAndEnroll = async (
     leadId: string,
     studentData: {
       fullName: string;
@@ -523,270 +520,151 @@ export const SalesWorkflowProvider: React.FC<{ children: React.ReactNode }> = ({
       transactionRef: string;
       notes?: string;
     }
-  ) => {
-    const studentId = `stu-${Date.now().toString().slice(-4)}`;
-    const paymentId = `pay-${Date.now().toString().slice(-4)}`;
-    const nowIso = new Date().toISOString();
+  ): Promise<{ studentId: string; paymentId: string } | null> => {
+    const lead = leads.find((candidate) => candidate.id === leadId);
+    if (!lead) {
+      showToast('Enrollment Not Saved', 'The selected lead no longer exists.', 'alert');
+      return null;
+    }
 
-    const targetCloser =
-      currentUser.role === 'closer' && currentUser.closerId
-        ? closers.find((c) => c.id === currentUser.closerId) || closers[0]
-        : closers[0];
-
-    // Determine installments count
     let totalInstallments = 1;
     if (studentData.paymentPlan === '2-Part Installment') totalInstallments = 2;
     if (studentData.paymentPlan === '3-Part Installment') totalInstallments = 3;
 
-    // 1. Create Student Enrollment
-    const newStudent: StudentEnrollment = {
-      id: studentId,
-      leadId,
-      fullName: studentData.fullName,
-      email: studentData.email,
-      phone: studentData.phone,
-      program: studentData.program,
-      tier: studentData.tier,
-      assignedCloserId: targetCloser.id,
-      totalContractValue: studentData.totalContractValue,
-      paymentPlan: studentData.paymentPlan,
-      enrolledAt: nowIso,
-      financeStatus: 'pending_payment'
-    };
-
-    // 2. Create Initial Finance Payment Record (Status: PENDING)
-    const newPayment: PaymentRecord = {
-      id: paymentId,
-      transactionRef: paymentData.transactionRef.trim() || `TXN-${Math.floor(10000 + Math.random() * 90000)}`,
-      studentId,
-      studentName: studentData.fullName,
-      closerId: targetCloser.id,
-      closerName: targetCloser.name,
-      program: studentData.program,
-      amount: paymentData.amount,
-      paymentType: paymentData.paymentType,
-      installmentNumber: 1,
-      totalInstallments,
-      status: 'pending',
-      createdAt: nowIso,
-      financeNotes: paymentData.notes || 'Submitted by admissions closer. Awaiting bank / processor settlement.'
-    };
-
-    // 3. Update Lead
-    setLeads((prev) =>
-      prev.map((l) =>
-        l.id === leadId
-          ? {
-              ...l,
-              stage: 'enrolled',
-              enrollmentId: studentId,
-              lastActivityAt: nowIso
-            }
-          : l
-      )
-    );
-
-    setStudents((prev) => [newStudent, ...prev]);
-    setPayments((prev) => [newPayment, ...prev]);
-
-    showToast(
-      'Student Closed & Enrolled',
-      `${studentData.fullName} enrolled ($${studentData.totalContractValue.toLocaleString()}). Payment of $${paymentData.amount.toLocaleString()} is now PENDING verification in Finance.`,
-      'success'
-    );
-
-    return { studentId, paymentId };
-  };
-
-  // STEP 3, 4 & 5: Finance Verification -> Sales Data Sync -> Attribution
-  const verifyPayment = (paymentId: string, notes?: string) => {
-    const targetPayment = payments.find((p) => p.id === paymentId);
-    if (!targetPayment) return;
-
-    const nowIso = new Date().toISOString();
-    const officerName = currentUser.name;
-
-    // Deduplication check: Check if same transactionRef already exists and verified
-    const isDuplicate = payments.some(
-      (p) => p.id !== paymentId && p.transactionRef === targetPayment.transactionRef && p.status === 'verified'
-    );
-
-    if (isDuplicate) {
+    try {
+      const result = await salesApi.closeStudent(lead, studentData, {
+        amount: paymentData.amount,
+        paymentType: paymentData.paymentType,
+        transactionRef: paymentData.transactionRef.trim(),
+        installmentNumber: 1,
+        totalInstallments,
+        financeNotes: paymentData.notes || 'Submitted by admissions closer. Awaiting bank / processor settlement.'
+      });
+      await refreshData();
       showToast(
-        'Duplicate Transaction Prevented',
-        `Transaction Ref "${targetPayment.transactionRef}" is already recorded in the ledger!`,
-        'alert'
+        'Student Closed & Enrolled',
+        `${studentData.fullName} and the pending payment were saved atomically by the backend.`,
+        'success'
       );
-      return;
+      return { studentId: result.student.id, paymentId: result.payment.id };
+    } catch (error) {
+      showToast('Enrollment Not Saved', error instanceof Error ? error.message : 'The API request failed.', 'alert');
+      return null;
     }
-
-    // 1. Update Payment Record to 'verified'
-    setPayments((prev) =>
-      prev.map((p) =>
-        p.id === paymentId
-          ? {
-              ...p,
-              status: 'verified',
-              verifiedAt: nowIso,
-              verifiedBy: officerName,
-              financeNotes: notes || p.financeNotes || 'Verified by Finance verification team.'
-            }
-          : p
-      )
-    );
-
-    // 2. Update Student Enrollment Status
-    setStudents((prev) =>
-      prev.map((s) => {
-        if (s.id === targetPayment.studentId) {
-          const isComplete =
-            targetPayment.installmentNumber >= targetPayment.totalInstallments ||
-            targetPayment.amount >= s.totalContractValue;
-          return {
-            ...s,
-            financeStatus: isComplete ? 'fully_collected' : 'partially_collected'
-          };
-        }
-        return s;
-      })
-    );
-
-    // 3. Update associated Lead to 'closed_won'
-    const student = students.find((s) => s.id === targetPayment.studentId);
-    if (student?.leadId) {
-      setLeads((prev) =>
-        prev.map((l) =>
-          l.id === student.leadId
-            ? { ...l, stage: 'closed_won', lastActivityAt: nowIso }
-            : l
-        )
-      );
-    }
-
-    // 4. Record Sales Sync Event
-    const latency = Math.floor(65 + Math.random() * 85);
-    const syncEvent: SalesSyncEvent = {
-      id: `sync-${Date.now()}`,
-      timestamp: nowIso,
-      paymentId: targetPayment.id,
-      transactionRef: targetPayment.transactionRef,
-      closerName: targetPayment.closerName,
-      studentName: targetPayment.studentName,
-      amount: targetPayment.amount,
-      program: targetPayment.program,
-      status: 'SYNCED',
-      verificationLatencyMs: latency,
-      details: `Attribution matched: $${targetPayment.amount.toLocaleString()} credited to ${targetPayment.closerName} for ${targetPayment.program}.`
-    };
-    setSyncEvents((prev) => [syncEvent, ...prev]);
-
-    // 5. Record Verification Audit Log
-    const auditLog: VerificationAuditLog = {
-      id: `audit-${Date.now()}`,
-      paymentId: targetPayment.id,
-      transactionRef: targetPayment.transactionRef,
-      previousStatus: targetPayment.status,
-      newStatus: 'verified',
-      officerName,
-      timestamp: nowIso,
-      notes: notes || 'Verified and approved for sales attribution.'
-    };
-    setAuditLogs((prev) => [auditLog, ...prev]);
-
-    showToast(
-      'Payment Verified & Synced!',
-      `$${targetPayment.amount.toLocaleString()} confirmed. Attribution credited to ${targetPayment.closerName}.`,
-      'success'
-    );
   };
 
-  const rejectPayment = (paymentId: string, reason: string) => {
+  const addPayment = async (paymentData: {
+    studentId: string;
+    amount: number;
+    paymentType: PaymentType;
+    transactionRef: string;
+    notes?: string;
+  }): Promise<PaymentRecord | null> => {
+    const student = students.find((candidate) => candidate.id === paymentData.studentId);
+    if (!student) return null;
+
+    try {
+      const payment = await salesApi.createPayment({
+        studentId: student.id,
+        closerId: student.assignedCloserId,
+        amount: paymentData.amount,
+        paymentType: paymentData.paymentType,
+        transactionRef: paymentData.transactionRef.trim(),
+        installmentNumber: 1,
+        totalInstallments: 1,
+        financeNotes: paymentData.notes
+      });
+      setPayments((previous) => [payment, ...previous]);
+      showToast('Payment Logged', 'The payment was saved to the backend verification queue.', 'success');
+      return payment;
+    } catch (error) {
+      showToast('Payment Not Saved', error instanceof Error ? error.message : 'The API request failed.', 'alert');
+      return null;
+    }
+  };
+
+  const verifyPayment = async (paymentId: string, notes?: string): Promise<void> => {
     const targetPayment = payments.find((p) => p.id === paymentId);
     if (!targetPayment) return;
 
-    const nowIso = new Date().toISOString();
-    const officerName = currentUser.name;
-
-    setPayments((prev) =>
-      prev.map((p) =>
-        p.id === paymentId
-          ? {
-              ...p,
-              status: 'rejected',
-              verifiedAt: nowIso,
-              verifiedBy: officerName,
-              financeNotes: `Rejected: ${reason}`
-            }
-          : p
-      )
-    );
-
-    const auditLog: VerificationAuditLog = {
-      id: `audit-${Date.now()}`,
-      paymentId: targetPayment.id,
-      transactionRef: targetPayment.transactionRef,
-      previousStatus: targetPayment.status,
-      newStatus: 'rejected',
-      officerName,
-      timestamp: nowIso,
-      notes: reason
-    };
-    setAuditLogs((prev) => [auditLog, ...prev]);
-
-    showToast('Payment Rejected', `Flagged for ${targetPayment.closerName} resolution.`, 'alert');
+    try {
+      await salesApi.verifyPayment(paymentId, 'verified', notes);
+      await refreshData();
+      showToast(
+        'Payment Verified & Synced!',
+        `$${targetPayment.amount.toLocaleString()} confirmed and persisted to the attribution ledger.`,
+        'success'
+      );
+    } catch (error) {
+      showToast('Verification Failed', error instanceof Error ? error.message : 'The API request failed.', 'alert');
+    }
   };
 
-  const updateCloserQuota = (
+  const rejectPayment = async (paymentId: string, reason: string): Promise<void> => {
+    const targetPayment = payments.find((p) => p.id === paymentId);
+    if (!targetPayment) return;
+
+    try {
+      await salesApi.verifyPayment(paymentId, 'rejected', reason);
+      await refreshData();
+      showToast('Payment Rejected', `Flagged for ${targetPayment.closerName} resolution.`, 'alert');
+    } catch (error) {
+      showToast('Rejection Failed', error instanceof Error ? error.message : 'The API request failed.', 'alert');
+    }
+  };
+
+  const updateCloserQuota = async (
     closerId: string,
     monthlyTarget: number,
     collectionTarget: number,
     baseCommissionPct?: number,
     acceleratorPct?: number
-  ) => {
-    setClosers((prev) =>
-      prev.map((c) =>
-        c.id === closerId
-          ? {
-              ...c,
-              quota: {
-                ...c.quota,
-                monthlyTarget,
-                collectionTarget,
-                baseCommissionPct: baseCommissionPct ?? c.quota.baseCommissionPct,
-                acceleratorPct: acceleratorPct ?? c.quota.acceleratorPct
-              }
-            }
-          : c
-      )
-    );
-    showToast('Quota Targets Updated', 'Closer quota and targets successfully recalculated.', 'info');
+  ): Promise<void> => {
+    const closer = closers.find((candidate) => candidate.id === closerId);
+    if (!closer) return;
+
+    try {
+      const updatedCloser = await salesApi.updateCloserQuota(closerId, {
+        ...closer.quota,
+        monthlyTarget,
+        collectionTarget,
+        baseCommissionPct: baseCommissionPct ?? closer.quota.baseCommissionPct,
+        acceleratorPct: acceleratorPct ?? closer.quota.acceleratorPct
+      });
+      setClosers((previous) => previous.map((candidate) => candidate.id === closerId ? updatedCloser : candidate));
+      showToast('Quota Targets Updated', 'Closer targets were saved to the backend.', 'info');
+    } catch (error) {
+      showToast('Quota Not Updated', error instanceof Error ? error.message : 'The API request failed.', 'alert');
+    }
   };
 
   const resetFilters = () => setFilter(initialFilter);
 
-  const resetToDefaults = () => {
-    setClosers(INITIAL_CLOSERS);
-    setLeads(INITIAL_LEADS);
-    setStudents(INITIAL_STUDENTS);
-    setPayments(INITIAL_PAYMENTS);
-    setSyncEvents(INITIAL_SYNC_EVENTS);
-    setAuditLogs(INITIAL_AUDIT_LOGS);
+  const resetToDefaults = async () => {
     setFilter(initialFilter);
-    showToast('Demo Data Reset', 'Workflow state re-initialized to initial benchmark state.', 'info');
+    try {
+      await refreshData();
+      showToast('Data Refreshed', 'The latest state was loaded from the backend.', 'info');
+    } catch {
+      showToast('Refresh Failed', 'The backend could not be reached.', 'alert');
+    }
   };
 
   return (
     <SalesWorkflowContext.Provider
       value={{
-        currentUser,
-        setCurrentUser,
-        users,
+        isLoading,
+        connectionError,
+        refreshData,
         closers,
         leads,
         students,
         payments,
         syncEvents,
         auditLogs,
+        programOptions,
+        paymentTypeOptions,
+        effectivePeriod,
         filteredVerifiedPayments,
         filter,
         setFilter,
@@ -812,6 +690,7 @@ export const SalesWorkflowProvider: React.FC<{ children: React.ReactNode }> = ({
         addLead,
         updateLeadStage,
         closeStudentAndEnroll,
+        addPayment,
         verifyPayment,
         rejectPayment,
         updateCloserQuota,
