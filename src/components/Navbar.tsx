@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useSalesWorkflow } from '../context/SalesWorkflowContext';
+import salesLogo from '../assets/images/saleslogo.jpg';
 import {
   TrendingUp,
   ShieldCheck,
@@ -49,9 +50,11 @@ export const Navbar: React.FC<NavbarProps> = ({
       <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
         {/* Brand */}
         <div className="flex items-center gap-2.5">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-600 text-white font-bold shadow-xs">
-            <span className="font-mono text-xs tracking-wider">TMT</span>
-          </div>
+          <img
+            src={salesLogo}
+            alt="TMT Sales"
+            className="h-8 w-8 rounded-lg border border-emerald-200 bg-white object-cover object-center shadow-xs"
+          />
           <button
             onClick={() => setActiveTab('dashboard')}
             className="text-sm font-bold tracking-tight text-slate-900 hover:text-emerald-700 transition-colors"
