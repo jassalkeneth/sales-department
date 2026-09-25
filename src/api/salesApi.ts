@@ -1,5 +1,6 @@
 import {
   Closer,
+  FinanceSyncStatus,
   Lead,
   PaymentRecord,
   SalesSyncEvent,
@@ -114,7 +115,8 @@ const mapPayment = (record: ApiRecord): PaymentRecord => ({
   verifiedAt: record.verified_at ? String(record.verified_at) : undefined,
   verifiedBy: record.verified_by ? String(record.verified_by) : undefined,
   financeNotes: record.finance_notes ? String(record.finance_notes) : undefined,
-  isDuplicateFlag: Boolean(record.is_duplicate_flag)
+  isDuplicateFlag: Boolean(record.is_duplicate_flag),
+  incomeProduct: record.income_product ? String(record.income_product) : undefined
 });
 
 const mapSyncEvent = (record: ApiRecord): SalesSyncEvent => ({
@@ -183,7 +185,8 @@ export const salesApi = {
     return request(path);
   },
 
-  async loadDashboard() {
+  async loadDashboard(forceFinanceSync = false) {
+    const financeSync = await request<FinanceSyncStatus>(`/finance-sync${forceFinanceSync ? '?force=1' : ''}`, { method: 'POST' });
     const [closers, leads, students, payments, syncEvents, auditLogs] = await Promise.all([
       request<ApiRecord[]>('/closers'),
       request<ApiRecord[]>('/leads'),
@@ -199,7 +202,8 @@ export const salesApi = {
       students: students.map(mapStudent),
       payments: payments.map(mapPayment),
       syncEvents: syncEvents.map(mapSyncEvent),
-      auditLogs: auditLogs.map(mapAuditLog)
+      auditLogs: auditLogs.map(mapAuditLog),
+      financeSync
     };
   },
 

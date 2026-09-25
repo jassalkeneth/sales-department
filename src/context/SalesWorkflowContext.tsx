@@ -8,6 +8,7 @@ import {
   VerificationAuditLog,
   CloserPerformance,
   FilterState,
+  FinanceSyncStatus,
   LeadStage,
   PaymentType,
   ProgramType
@@ -30,6 +31,7 @@ interface SalesWorkflowContextType {
   paymentTypeOptions: PaymentType[];
   effectivePeriod: string | null;
   filteredVerifiedPayments: PaymentRecord[];
+  financeSync: FinanceSyncStatus | null;
 
   // Filters
   filter: FilterState;
@@ -133,6 +135,7 @@ export const SalesWorkflowProvider: React.FC<{ children: React.ReactNode }> = ({
 
   // Verification Audit Logs
   const [auditLogs, setAuditLogs] = useState<VerificationAuditLog[]>([]);
+  const [financeSync, setFinanceSync] = useState<FinanceSyncStatus | null>(null);
 
   // Filters State
   const initialFilter: FilterState = {
@@ -170,12 +173,13 @@ export const SalesWorkflowProvider: React.FC<{ children: React.ReactNode }> = ({
     setPayments(data.payments);
     setSyncEvents(data.syncEvents);
     setAuditLogs(data.auditLogs);
+    setFinanceSync(data.financeSync);
   };
 
   const refreshData = async () => {
     setIsLoading(true);
     try {
-      applyDashboardData(await salesApi.loadDashboard());
+      applyDashboardData(await salesApi.loadDashboard(true));
       setConnectionError(null);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unable to reach the sales API.';
@@ -244,7 +248,8 @@ export const SalesWorkflowProvider: React.FC<{ children: React.ReactNode }> = ({
 
     return allVerifiedPayments.filter((payment) => {
       const student = studentsById.get(payment.studentId);
-      const verifiedDate = new Date(payment.verifiedAt || payment.createdAt);
+      // Revenue belongs to the transaction period, not the later date Finance reviewed it.
+      const verifiedDate = new Date(payment.createdAt);
 
       if (filter.closerId !== 'all' && payment.closerId !== filter.closerId) return false;
       if (filter.program !== 'all' && payment.program !== filter.program) return false;
@@ -287,12 +292,16 @@ export const SalesWorkflowProvider: React.FC<{ children: React.ReactNode }> = ({
       const actualCollections = closerVerifiedPayments.reduce((acc, curr) => acc + curr.amount, 0);
 
       // Find all students with at least 1 verified payment attributed to this closer
-      const studentIdsWithVerifiedPayment = new Set(closerVerifiedPayments.map((p) => p.studentId));
+      const closerSalePayments = closerVerifiedPayments.filter(
+        (payment) => payment.incomeProduct !== 'Premium Collection'
+      );
+      const studentIdsWithVerifiedPayment = new Set(closerSalePayments.map((p) => p.studentId));
       const closerStudents = students.filter(
         (s) => s.assignedCloserId === closer.id && studentIdsWithVerifiedPayment.has(s.id)
       );
       
-      const actualSales = closerStudents.reduce((acc, curr) => acc + curr.totalContractValue, 0);
+      const actualSales = closerSalePayments
+        .reduce((sum, payment) => sum + payment.amount, 0);
 
       // Pending verification amount for this closer
       const pendingCollections = payments
@@ -310,7 +319,9 @@ export const SalesWorkflowProvider: React.FC<{ children: React.ReactNode }> = ({
       const remainingSalesTarget = Math.max(0, closer.quota.monthlyTarget - actualSales);
       const remainingCollectionTarget = Math.max(0, closer.quota.collectionTarget - actualCollections);
 
-      const closedDealsCount = closerStudents.length;
+      const closedDealsCount = new Set(
+        closerSalePayments.map((payment) => payment.studentId)
+      ).size;
       const avgSaleValue = closedDealsCount > 0 ? actualSales / closedDealsCount : 0;
       const premiumStudentsCount = closerStudents.filter(
         (s) => s.tier === 'Premium' || s.tier === 'Elite Cohort'
@@ -353,11 +364,10 @@ export const SalesWorkflowProvider: React.FC<{ children: React.ReactNode }> = ({
   // Team Aggregate KPIs
   const totalVerifiedSales = useMemo(() => {
     // Unique students who have at least one verified payment
-    const verifiedStudentIds = new Set(filteredVerifiedPayments.map((p) => p.studentId));
-    return students
-      .filter((s) => verifiedStudentIds.has(s.id))
-      .reduce((sum, s) => sum + s.totalContractValue, 0);
-  }, [filteredVerifiedPayments, students]);
+    return filteredVerifiedPayments
+      .filter((payment) => payment.incomeProduct !== 'Premium Collection')
+      .reduce((sum, payment) => sum + payment.amount, 0);
+  }, [filteredVerifiedPayments]);
 
   const totalVerifiedCollections = useMemo(() => {
     return filteredVerifiedPayments.reduce((sum, p) => sum + p.amount, 0);
@@ -381,14 +391,22 @@ export const SalesWorkflowProvider: React.FC<{ children: React.ReactNode }> = ({
   const remainingTeamCollectionTarget = Math.max(0, teamCollectionTarget - totalVerifiedCollections);
 
   const verifiedStudentsCount = useMemo(() => {
-    const verifiedStudentIds = new Set(filteredVerifiedPayments.map((p) => p.studentId));
+    const verifiedStudentIds = new Set(
+      filteredVerifiedPayments
+        .filter((payment) => payment.incomeProduct !== 'Premium Collection')
+        .map((payment) => payment.studentId)
+    );
     return students.filter((s) => verifiedStudentIds.has(s.id)).length;
   }, [filteredVerifiedPayments, students]);
 
   const avgSaleValue = verifiedStudentsCount > 0 ? totalVerifiedSales / verifiedStudentsCount : 0;
 
   const premiumStudentsCount = useMemo(() => {
-    const verifiedStudentIds = new Set(filteredVerifiedPayments.map((p) => p.studentId));
+    const verifiedStudentIds = new Set(
+      filteredVerifiedPayments
+        .filter((payment) => payment.incomeProduct !== 'Premium Collection')
+        .map((payment) => payment.studentId)
+    );
     return students.filter(
       (s) => verifiedStudentIds.has(s.id) && (s.tier === 'Premium' || s.tier === 'Elite Cohort')
     ).length;
@@ -538,7 +556,7 @@ export const SalesWorkflowProvider: React.FC<{ children: React.ReactNode }> = ({
         transactionRef: paymentData.transactionRef.trim(),
         installmentNumber: 1,
         totalInstallments,
-        financeNotes: paymentData.notes || 'Submitted by admissions closer. Awaiting bank / processor settlement.'
+        financeNotes: paymentData.notes
       });
       await refreshData();
       showToast(
@@ -592,7 +610,7 @@ export const SalesWorkflowProvider: React.FC<{ children: React.ReactNode }> = ({
       await refreshData();
       showToast(
         'Payment Verified & Synced!',
-        `$${targetPayment.amount.toLocaleString()} confirmed and persisted to the attribution ledger.`,
+        `₱${targetPayment.amount.toLocaleString()} confirmed and persisted to the attribution ledger.`,
         'success'
       );
     } catch (error) {
@@ -666,6 +684,7 @@ export const SalesWorkflowProvider: React.FC<{ children: React.ReactNode }> = ({
         paymentTypeOptions,
         effectivePeriod,
         filteredVerifiedPayments,
+        financeSync,
         filter,
         setFilter,
         resetFilters,

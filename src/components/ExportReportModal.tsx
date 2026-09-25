@@ -59,12 +59,12 @@ export const ExportReportModal: React.FC<ExportReportModalProps> = ({ onClose })
       'Rank',
       'Closer Name',
       'Title',
-      'Actual Sales ($)',
-      'Verified Collections ($)',
-      'Monthly Target ($)',
+      'Actual Sales (PHP)',
+      'Verified Collections (PHP)',
+      'Monthly Target (PHP)',
       'Achievement (%)',
       'Deals Closed',
-      'Estimated Commission ($)'
+      'Estimated Commission (PHP)'
     ];
 
     const rows = closerPerformances.map((c) => [
@@ -97,14 +97,14 @@ export const ExportReportModal: React.FC<ExportReportModalProps> = ({ onClose })
     const lines = [
       'TMT Sales Dashboard - Verified Sales Summary',
       `Period: ${period}`,
-      `Verified Sales: $${totalVerifiedSales.toLocaleString()}`,
-      `Verified Collections: $${totalVerifiedCollections.toLocaleString()}`,
+      `Verified Sales: PHP ${totalVerifiedSales.toLocaleString()}`,
+      `Verified Collections: PHP ${totalVerifiedCollections.toLocaleString()}`,
       `Sales Achievement: ${salesAchievementPct.toFixed(1)}%`,
       '',
       'Closer Performance'
     ];
     closerPerformances.forEach((performance) => {
-      lines.push(`${performance.closer.name}: $${performance.actualSales.toLocaleString()} sales | $${performance.actualCollections.toLocaleString()} collections | ${performance.salesAchievementPct.toFixed(1)}%`);
+      lines.push(`${performance.closer.name}: PHP ${performance.actualSales.toLocaleString()} sales | PHP ${performance.actualCollections.toLocaleString()} collections | ${performance.salesAchievementPct.toFixed(1)}%`);
     });
     document.setFontSize(12);
     document.text(lines, 16, 20, { maxWidth: 178, lineHeightFactor: 1.5 });
@@ -226,11 +226,11 @@ export const ExportReportModal: React.FC<ExportReportModalProps> = ({ onClose })
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
             <div className="p-2.5 rounded-lg bg-white border border-slate-200">
               <span className="text-[10px] text-slate-500 font-sans">Verified Sales</span>
-              <div className="text-slate-900 font-bold">${totalVerifiedSales.toLocaleString()}</div>
+              <div className="text-slate-900 font-bold">₱{totalVerifiedSales.toLocaleString()}</div>
             </div>
             <div className="p-2.5 rounded-lg bg-white border border-slate-200">
               <span className="text-[10px] text-slate-500 font-sans">Verified Cash</span>
-              <div className="text-emerald-700 font-bold">${totalVerifiedCollections.toLocaleString()}</div>
+              <div className="text-emerald-700 font-bold">₱{totalVerifiedCollections.toLocaleString()}</div>
             </div>
             <div className="p-2.5 rounded-lg bg-white border border-slate-200">
               <span className="text-[10px] text-slate-500 font-sans">Achievement</span>

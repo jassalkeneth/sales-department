@@ -3,13 +3,8 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\Lead;
 use App\Models\Payment;
-use App\Models\StudentEnrollment;
-use App\Models\SyncEvent;
-use App\Models\VerificationAuditLog;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 class PaymentController extends Controller
@@ -61,77 +56,13 @@ class PaymentController extends Controller
 
     public function verify(Request $request, Payment $payment)
     {
-        $data = $request->validate([
+        $request->validate([
             'action' => 'required|in:verified,rejected,refunded',
             'notes' => 'nullable|string',
         ]);
 
-        return DB::transaction(function () use ($payment, $data, $request) {
-            $payment = Payment::whereKey($payment->id)->lockForUpdate()->firstOrFail();
-            $previous = $payment->status;
-            $officerName = optional($request->user())->name ?? 'System';
-
-            $payment->update([
-                'status' => $data['action'],
-                'verified_at' => now(),
-                'verified_by' => $officerName,
-                'finance_notes' => $data['notes'] ?? $payment->finance_notes,
-            ]);
-
-            VerificationAuditLog::create([
-                'id' => 'audit-'.Str::lower(Str::random(8)),
-                'payment_id' => $payment->id,
-                'transaction_ref' => $payment->transaction_ref,
-                'previous_status' => $previous,
-                'new_status' => $data['action'],
-                'officer_name' => $officerName,
-                'occurred_at' => now(),
-                'notes' => $data['notes'] ?? null,
-            ]);
-
-            if ($data['action'] === 'verified') {
-                SyncEvent::create([
-                    'id' => 'sync-'.Str::lower(Str::random(8)),
-                    'occurred_at' => now(),
-                    'payment_id' => $payment->id,
-                    'transaction_ref' => $payment->transaction_ref,
-                    'closer_name' => $payment->closer_name,
-                    'student_name' => $payment->student_name,
-                    'amount' => $payment->amount,
-                    'program' => $payment->program,
-                    'status' => 'SYNCED',
-                    'verification_latency_ms' => random_int(80, 220),
-                    'details' => "Attribution verified. Added \${$payment->amount} to {$payment->closer_name} collection ledger.",
-                ]);
-
-                $student = StudentEnrollment::find($payment->student_id);
-                if ($student?->lead_id) {
-                    Lead::whereKey($student->lead_id)->update([
-                        'stage' => 'closed_won',
-                        'last_activity_at' => now(),
-                    ]);
-                }
-            }
-
-            $this->recomputeStudentFinanceStatus($payment->student_id);
-
-            return $payment->fresh();
-        });
-    }
-
-    private function recomputeStudentFinanceStatus(string $studentId): void
-    {
-        $student = StudentEnrollment::find($studentId);
-        if (! $student) {
-            return;
-        }
-        $verified = Payment::where('student_id', $studentId)->where('status', 'verified')->sum('amount');
-        $status = 'pending_payment';
-        if ($verified > 0 && $verified < $student->total_contract_value) {
-            $status = 'partially_collected';
-        } elseif ($verified >= $student->total_contract_value) {
-            $status = 'fully_collected';
-        }
-        $student->update(['finance_status' => $status]);
+        return response()->json([
+            'message' => 'Verification is controlled by Finance. Update the transaction in Finance, then sync this dashboard.',
+        ], 422);
     }
 }

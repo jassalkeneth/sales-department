@@ -31,7 +31,7 @@ class WorkflowConnectionTest extends TestCase
         }
     }
 
-    public function test_close_and_verify_workflow_persists_every_connected_record(): void
+    public function test_local_payment_cannot_override_finance_verification(): void
     {
         Sanctum::actingAs(User::factory()->create());
         $closer = Closer::create([
@@ -93,30 +93,23 @@ class WorkflowConnectionTest extends TestCase
             'action' => 'verified',
             'notes' => 'Bank settlement confirmed.',
         ])
-            ->assertOk()
-            ->assertJsonPath('status', 'verified');
+            ->assertUnprocessable()
+            ->assertJsonPath('message', 'Verification is controlled by Finance. Update the transaction in Finance, then sync this dashboard.');
 
         $this->assertDatabaseHas(Payment::class, [
             'id' => $paymentId,
-            'status' => 'verified',
+            'status' => 'pending',
         ]);
         $this->assertDatabaseHas(StudentEnrollment::class, [
             'id' => $studentId,
-            'finance_status' => 'partially_collected',
+            'finance_status' => 'pending_payment',
         ]);
         $this->assertDatabaseHas(Lead::class, [
             'id' => $lead->id,
-            'stage' => 'closed_won',
+            'stage' => 'enrolled',
             'enrollment_id' => $studentId,
         ]);
-        $this->assertDatabaseHas('verification_audit_logs', [
-            'payment_id' => $paymentId,
-            'new_status' => 'verified',
-        ]);
-        $this->assertDatabaseHas('sync_events', [
-            'payment_id' => $paymentId,
-            'status' => 'SYNCED',
-        ]);
-
+        $this->assertDatabaseMissing('verification_audit_logs', ['payment_id' => $paymentId]);
+        $this->assertDatabaseMissing('sync_events', ['payment_id' => $paymentId]);
     }
 }

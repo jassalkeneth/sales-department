@@ -17,7 +17,7 @@ class StudentEnrollment extends Model
     ];
 
     protected $casts = [
-        'total_contract_value' => 'integer',
+        'total_contract_value' => 'float',
         'enrolled_at' => 'datetime',
     ];
 

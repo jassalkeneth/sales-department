@@ -246,7 +246,7 @@ export const StudentAttributionLedger: React.FC = () => {
 
                       <td className="py-3.5 px-4 text-right font-bold tabular-nums">
                         <span className={row.verifiedCollected > 0 ? 'text-emerald-700 font-bold' : 'text-slate-400'}>
-                          ${row.verifiedCollected.toLocaleString()}
+                          ₱{row.verifiedCollected.toLocaleString()}
                         </span>
                       </td>
 
@@ -265,7 +265,7 @@ export const StudentAttributionLedger: React.FC = () => {
                       </td>
 
                       <td className="py-3.5 px-4 text-right font-bold text-slate-900 tabular-nums">
-                        ${s.totalContractValue.toLocaleString()}
+                        ₱{s.totalContractValue.toLocaleString()}
                       </td>
                     </tr>
                   );
@@ -314,7 +314,7 @@ export const StudentAttributionLedger: React.FC = () => {
               <div>
                 <span className="text-[10px] text-slate-500 font-sans font-medium">Contract Value</span>
                 <p className="text-slate-900 font-bold mt-0.5">
-                  ${selectedStudent.totalContractValue.toLocaleString()}
+                  ₱{selectedStudent.totalContractValue.toLocaleString()}
                 </p>
               </div>
               <div>
@@ -347,7 +347,7 @@ export const StudentAttributionLedger: React.FC = () => {
                       <td className="py-2 px-3 text-slate-900 font-semibold">{p.transactionRef}</td>
                       <td className="py-2 px-3 font-sans text-slate-700">{p.paymentType}</td>
                       <td className="py-2 px-3 text-right font-bold text-emerald-700 tabular-nums">
-                        ${p.amount.toLocaleString()}
+                        ₱{p.amount.toLocaleString()}
                       </td>
                       <td className="py-2 px-3 text-center font-sans">
                         <span

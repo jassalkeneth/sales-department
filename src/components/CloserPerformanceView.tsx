@@ -138,19 +138,19 @@ export const CloserPerformanceView: React.FC = () => {
                 <div>
                   <span className="text-slate-500 text-[10px] font-sans font-medium">Booked Sales</span>
                   <div className="text-base font-bold text-slate-900 tabular-nums">
-                    ${perf.actualSales.toLocaleString()}
+                    ₱{perf.actualSales.toLocaleString()}
                   </div>
                   <span className="text-[10px] text-slate-500 font-sans">
-                    Target: ${perf.closer.quota.monthlyTarget.toLocaleString()}
+                    Target: ₱{perf.closer.quota.monthlyTarget.toLocaleString()}
                   </span>
                 </div>
                 <div>
                   <span className="text-slate-500 text-[10px] font-sans font-medium">Cash Collections</span>
                   <div className="text-base font-bold text-emerald-700 tabular-nums">
-                    ${perf.actualCollections.toLocaleString()}
+                    ₱{perf.actualCollections.toLocaleString()}
                   </div>
                   <span className="text-[10px] text-slate-500 font-sans">
-                    Target: ${perf.closer.quota.collectionTarget.toLocaleString()}
+                    Target: ₱{perf.closer.quota.collectionTarget.toLocaleString()}
                   </span>
                 </div>
               </div>
@@ -176,7 +176,7 @@ export const CloserPerformanceView: React.FC = () => {
               <div className="mt-3 pt-2.5 border-t border-slate-200/60 flex items-center justify-between text-[11px]">
                 <span className="text-slate-600 font-medium">Est. Commission:</span>
                 <span className="font-mono font-bold text-indigo-700 tabular-nums">
-                  ${Math.round(perf.estimatedCommissions).toLocaleString()}
+                  ₱{Math.round(perf.estimatedCommissions).toLocaleString()}
                 </span>
               </div>
             </div>
@@ -232,19 +232,19 @@ export const CloserPerformanceView: React.FC = () => {
                   </td>
 
                   <td className="py-3.5 px-4 text-right font-bold text-slate-900 tabular-nums">
-                    ${perf.actualSales.toLocaleString()}
+                    ₱{perf.actualSales.toLocaleString()}
                   </td>
 
                   <td className="py-3.5 px-4 text-right text-slate-500 tabular-nums">
-                    ${perf.remainingSalesTarget.toLocaleString()}
+                    ₱{perf.remainingSalesTarget.toLocaleString()}
                   </td>
 
                   <td className="py-3.5 px-4 text-right font-bold text-emerald-700 tabular-nums">
-                    ${perf.actualCollections.toLocaleString()}
+                    ₱{perf.actualCollections.toLocaleString()}
                   </td>
 
                   <td className="py-3.5 px-4 text-right text-slate-500 tabular-nums">
-                    ${perf.remainingCollectionTarget.toLocaleString()}
+                    ₱{perf.remainingCollectionTarget.toLocaleString()}
                   </td>
 
                   <td className="py-3.5 px-4 text-center">
@@ -268,7 +268,7 @@ export const CloserPerformanceView: React.FC = () => {
                   </td>
 
                   <td className="py-3.5 px-4 text-right text-slate-700 tabular-nums">
-                    ${Math.round(perf.avgSaleValue).toLocaleString()}
+                    ₱{Math.round(perf.avgSaleValue).toLocaleString()}
                   </td>
 
                   <td className="py-3.5 px-4 text-right text-purple-700 font-semibold tabular-nums">
@@ -278,7 +278,7 @@ export const CloserPerformanceView: React.FC = () => {
                   </td>
 
                   <td className="py-3.5 px-4 text-right font-bold text-indigo-700 tabular-nums">
-                    ${Math.round(perf.estimatedCommissions).toLocaleString()}
+                    ₱{Math.round(perf.estimatedCommissions).toLocaleString()}
                   </td>
 
                   <td className="py-3.5 px-4 text-center font-sans">
@@ -310,7 +310,7 @@ export const CloserPerformanceView: React.FC = () => {
             <form onSubmit={handleSaveQuota} className="space-y-4 text-xs font-mono">
               <div>
                 <label className="block text-slate-700 font-sans mb-1 font-medium">
-                  Monthly Sales Target ($ Booked)
+                  Monthly Sales Target (PHP Booked)
                 </label>
                 <input
                   type="number"
@@ -323,7 +323,7 @@ export const CloserPerformanceView: React.FC = () => {
 
               <div>
                 <label className="block text-slate-700 font-sans mb-1 font-medium">
-                  Collection Target ($ Cash in Bank)
+                  Collection Target (PHP Cash in Bank)
                 </label>
                 <input
                   type="number"

@@ -18,24 +18,34 @@ class PerformanceController extends Controller
         $rows = $closers->map(function (Closer $c) {
             $verified = Payment::where('closer_id', $c->id)->where('status', 'verified');
             $pending = Payment::where('closer_id', $c->id)->where('status', 'pending');
+            $verifiedSales = (clone $verified)->where(function ($query) {
+                $query->whereNull('income_product')
+                    ->orWhere('income_product', '!=', 'Premium Collection');
+            });
 
-            $actualSales = StudentEnrollment::where('assigned_closer_id', $c->id)->sum('total_contract_value');
-            $actualCollections = (int) (clone $verified)->sum('amount');
-            $pendingCollections = (int) (clone $pending)->sum('amount');
-            $closedDealsCount = StudentEnrollment::where('assigned_closer_id', $c->id)->count();
-            $premiumStudentsCount = StudentEnrollment::where('assigned_closer_id', $c->id)
+            $actualSales = (float) (clone $verifiedSales)->sum('amount');
+            $actualCollections = (float) (clone $verified)->sum('amount');
+            $pendingCollections = (float) (clone $pending)->sum('amount');
+            $closedStudentIds = (clone $verifiedSales)->distinct()->pluck('student_id');
+            $closedDealsCount = $closedStudentIds->count();
+            $premiumStudentsCount = StudentEnrollment::whereIn('id', $closedStudentIds)
                 ->whereIn('tier', ['Premium', 'Elite Cohort'])->count();
 
             $salesAchievementPct = $c->monthly_target > 0 ? round(($actualSales / $c->monthly_target) * 100, 2) : 0;
             $collectionAchievementPct = $c->collection_target > 0 ? round(($actualCollections / $c->collection_target) * 100, 2) : 0;
             $avgSaleValue = $closedDealsCount > 0 ? (int) round($actualSales / $closedDealsCount) : 0;
 
-            $commissionPct = $salesAchievementPct >= 100 ? $c->accelerator_pct : $c->base_commission_pct;
-            $estimatedCommissions = (int) round($actualCollections * ($commissionPct / 100));
+            $baseCollections = min($actualCollections, (float) $c->collection_target);
+            $acceleratedCollections = max(0, $actualCollections - (float) $c->collection_target);
+            $estimatedCommissions = round(
+                ($baseCollections * ((float) $c->base_commission_pct / 100))
+                + ($acceleratedCollections * ((float) $c->accelerator_pct / 100)),
+                2,
+            );
 
             return [
                 'closer' => $c,
-                'actualSales' => (int) $actualSales,
+                'actualSales' => $actualSales,
                 'actualCollections' => $actualCollections,
                 'pendingCollections' => $pendingCollections,
                 'salesAchievementPct' => $salesAchievementPct,

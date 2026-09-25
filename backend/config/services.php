@@ -35,4 +35,10 @@ return [
         ],
     ],
 
+    'tmt_finance' => [
+        'base_url' => env('TMT_DATABASE_API_URL', 'http://127.0.0.1:3002'),
+        'api_key' => env('TMT_DATABASE_API_KEY'),
+        'timeout' => (int) env('TMT_DATABASE_API_TIMEOUT', 30),
+    ],
+
 ];

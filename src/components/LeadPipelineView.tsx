@@ -154,7 +154,7 @@ export const LeadPipelineView: React.FC = () => {
                   <div>
                     <span className="text-xs font-bold text-slate-900 block">{col.title}</span>
                     <span className="text-[10px] font-mono text-emerald-700 font-bold tabular-nums">
-                      ${(totalVal / 1000).toFixed(0)}k
+                      ₱{(totalVal / 1000).toFixed(0)}k
                     </span>
                   </div>
                   <span className="px-1.5 py-0.2 text-[10px] font-mono font-semibold rounded bg-slate-100 text-slate-700 border border-slate-200">
@@ -178,7 +178,7 @@ export const LeadPipelineView: React.FC = () => {
                             {lead.fullName}
                           </span>
                           <span className="font-mono text-[11px] font-bold text-slate-900 tabular-nums">
-                            ${lead.estimatedDealValue?.toLocaleString()}
+                            ₱{lead.estimatedDealValue?.toLocaleString()}
                           </span>
                         </div>
 
@@ -303,7 +303,7 @@ export const LeadPipelineView: React.FC = () => {
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="block text-slate-700 font-medium mb-1">Value ($)</label>
+                  <label className="block text-slate-700 font-medium mb-1">Value (PHP)</label>
                   <input
                     type="number"
                     value={newDealValue}

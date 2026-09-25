@@ -18,7 +18,7 @@ class SyncEvent extends Model
 
     protected $casts = [
         'occurred_at' => 'datetime',
-        'amount' => 'integer',
+        'amount' => 'float',
         'verification_latency_ms' => 'integer',
     ];
 }

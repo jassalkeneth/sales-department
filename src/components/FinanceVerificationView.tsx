@@ -1,468 +1,108 @@
 import React, { useState } from 'react';
+import { CheckCircle2, Clock3, Database, RefreshCw, Search } from 'lucide-react';
 import { useSalesWorkflow } from '../context/SalesWorkflowContext';
-import { PaymentRecord, PaymentType } from '../types';
-import {
-  Plus,
-  Search,
-  History
-} from 'lucide-react';
 import { SortableTableHeader } from './SortableTableHeader';
 import { useSortableData } from '../hooks/useSortableData';
 
+const peso = (value: number) => new Intl.NumberFormat('en-PH', {
+  style: 'currency',
+  currency: 'PHP',
+  maximumFractionDigits: 2
+}).format(value);
+
 export const FinanceVerificationView: React.FC = () => {
-  const {
-    payments,
-    verifyPayment,
-    rejectPayment,
-    auditLogs,
-    addPayment,
-    students,
-    paymentTypeOptions,
-  } = useSalesWorkflow();
-
-  const [activeTab, setActiveTab] = useState<'pending' | 'all' | 'audit'>('pending');
+  const { payments, financeSync, refreshData, isLoading } = useSalesWorkflow();
+  const [activeTab, setActiveTab] = useState<'pending' | 'all'>('pending');
   const [searchQuery, setSearchQuery] = useState('');
-  const [verifyModalPayment, setVerifyModalPayment] = useState<PaymentRecord | null>(null);
-  const [verificationNotes, setVerificationNotes] = useState('');
-  const [rejectModalPayment, setRejectModalPayment] = useState<PaymentRecord | null>(null);
-  const [rejectionReason, setRejectionReason] = useState('');
 
-  // Direct payment logging modal
-  const [isAddPaymentOpen, setIsAddPaymentOpen] = useState(false);
-  const [newStudentId, setNewStudentId] = useState(students[0]?.id || '');
-  const [newAmount, setNewAmount] = useState<number>(0);
-  const [newPaymentType, setNewPaymentType] = useState<PaymentType>('');
-  const [newTxnRef, setNewTxnRef] = useState('');
-  const [newNotes, setNewNotes] = useState('');
-
-  const pendingPayments = payments.filter((p) => p.status === 'pending');
-  const verifiedPayments = payments.filter((p) => p.status === 'verified');
-  const rejectedPayments = payments.filter((p) => p.status === 'rejected');
-
-  const filteredPayments = (activeTab === 'pending' ? pendingPayments : payments).filter((p) => {
-    if (!searchQuery) return true;
-    const q = searchQuery.toLowerCase();
-    return (
-      p.transactionRef.toLowerCase().includes(q) ||
-      p.studentName.toLowerCase().includes(q) ||
-      p.closerName.toLowerCase().includes(q)
-    );
+  const pendingPayments = payments.filter((payment) => payment.status === 'pending');
+  const verifiedPayments = payments.filter((payment) => payment.status === 'verified');
+  const visiblePayments = (activeTab === 'pending' ? pendingPayments : payments).filter((payment) => {
+    const query = searchQuery.trim().toLowerCase();
+    if (!query) return true;
+    return [payment.transactionRef, payment.studentName, payment.closerName, payment.program]
+      .join(' ').toLowerCase().includes(query);
   });
 
-  const {
-    sortedItems: sortedPayments,
-    sortConfig: paymentSortConfig,
-    requestSort: sortPayments
-  } = useSortableData(filteredPayments, {
+  const { sortedItems, sortConfig, requestSort } = useSortableData(visiblePayments, {
     transactionRef: (payment) => payment.transactionRef,
     studentName: (payment) => payment.studentName,
     closerName: (payment) => payment.closerName,
+    program: (payment) => payment.program,
     paymentType: (payment) => payment.paymentType,
     amount: (payment) => payment.amount,
     status: (payment) => payment.status
   });
 
-  const {
-    sortedItems: sortedAuditLogs,
-    sortConfig: auditSortConfig,
-    requestSort: sortAuditLogs
-  } = useSortableData(auditLogs, {
-    timestamp: (log) => new Date(log.timestamp),
-    transactionRef: (log) => log.transactionRef,
-    newStatus: (log) => log.newStatus,
-    officerName: (log) => log.officerName,
-    notes: (log) => log.notes
-  }, { key: 'timestamp', direction: 'desc' });
-
-  const handleVerifyConfirm = async () => {
-    if (!verifyModalPayment) return;
-    await verifyPayment(verifyModalPayment.id, verificationNotes || 'Verified via Finance Console');
-    setVerifyModalPayment(null);
-    setVerificationNotes('');
-  };
-
-  const handleRejectConfirm = async () => {
-    if (!rejectModalPayment) return;
-    await rejectPayment(rejectModalPayment.id, rejectionReason);
-    setRejectModalPayment(null);
-    setRejectionReason('');
-  };
-
   return (
     <div className="space-y-5">
-      {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
-            <span>Finance Verification</span>
-            <span className="text-xs font-mono font-medium px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200">
-              CPA Gate
-            </span>
-          </h1>
+          <h1 className="text-xl font-bold tracking-tight text-slate-900 sm:text-2xl">Finance Verification</h1>
+          <p className="mt-1 text-xs text-slate-500">Read-only Finance verification from TMT Central. Decisions must be made in Finance.</p>
         </div>
+        <button type="button" onClick={() => void refreshData()} disabled={isLoading} className="inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white shadow-xs transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60">
+          <RefreshCw className={`h-3.5 w-3.5 ${isLoading ? 'animate-spin' : ''}`} /> Sync Finance data
+        </button>
+      </div>
 
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setIsAddPaymentOpen(true)}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg shadow-xs transition-all"
-          >
-            <Plus className="h-3.5 w-3.5 stroke-[2.5]" />
-            <span>Log Direct Payment</span>
-          </button>
+      <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-3">
+        <SummaryCard label="For verification" value={peso(pendingPayments.reduce((sum, payment) => sum + payment.amount, 0))} detail={`${pendingPayments.length.toLocaleString()} Finance records`} icon={<Clock3 className="h-4 w-4" />} tone="amber" />
+        <SummaryCard label="Finance verified" value={peso(verifiedPayments.reduce((sum, payment) => sum + payment.amount, 0))} detail={`${verifiedPayments.length.toLocaleString()} Finance records`} icon={<CheckCircle2 className="h-4 w-4" />} tone="emerald" />
+        <SummaryCard label="Source status" value={financeSync?.source ?? 'TMT Central / Finance'} detail={financeSync ? `${financeSync.importedRecords.toLocaleString()} valid records · source updated ${financeSync.sourceUpdatedAt ? new Date(financeSync.sourceUpdatedAt).toLocaleString() : 'unknown'} · synced ${new Date(financeSync.syncedAt).toLocaleString()}` : 'Waiting for source sync'} icon={<Database className="h-4 w-4" />} tone="slate" />
+      </div>
+
+      {financeSync && Object.values(financeSync.skipped).some((count) => count > 0) && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-900">
+          Data-quality safeguards excluded {Object.values(financeSync.skipped).reduce((sum, count) => sum + count, 0).toLocaleString()} records: {' '}
+          {Object.entries(financeSync.skipped).filter(([, count]) => count > 0).map(([reason, count]) => `${count} ${reason.replaceAll('_', ' ')}`).join(', ')}.
+        </div>
+      )}
+
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-1 rounded-lg border border-slate-200 bg-slate-100 p-1">
+          <button onClick={() => setActiveTab('pending')} className={`rounded-md px-3 py-1.5 text-xs ${activeTab === 'pending' ? 'bg-white font-semibold shadow-xs' : 'text-slate-600'}`}>Pending ({pendingPayments.length})</button>
+          <button onClick={() => setActiveTab('all')} className={`rounded-md px-3 py-1.5 text-xs ${activeTab === 'all' ? 'bg-white font-semibold shadow-xs' : 'text-slate-600'}`}>All ({payments.length})</button>
+        </div>
+        <div className="relative w-full sm:w-64">
+          <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400" />
+          <input value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder="Search Finance records..." className="w-full rounded-lg border border-slate-200 bg-white py-2 pl-8 pr-3 text-xs outline-none focus:border-emerald-500" />
         </div>
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
-        <div className="emerald-glass-card rounded-xl p-4">
-          <div className="flex items-center justify-between text-xs text-amber-800 font-semibold uppercase tracking-wider">
-            <span>Pending Review</span>
-            <span className="font-mono text-slate-500">{pendingPayments.length} items</span>
-          </div>
-          <div className="mt-1.5 text-2xl font-bold font-mono text-slate-900 tabular-nums">
-            ${pendingPayments.reduce((acc, p) => acc + p.amount, 0).toLocaleString()}
-          </div>
-        </div>
-
-        <div className="emerald-glass-card rounded-xl p-4">
-          <div className="flex items-center justify-between text-xs text-emerald-800 font-semibold uppercase tracking-wider">
-            <span>Verified &amp; Synced</span>
-            <span className="font-mono text-slate-500">{verifiedPayments.length} items</span>
-          </div>
-          <div className="mt-1.5 text-2xl font-bold font-mono text-emerald-700 tabular-nums">
-            ${verifiedPayments.reduce((acc, p) => acc + p.amount, 0).toLocaleString()}
-          </div>
-        </div>
-
-        <div className="emerald-glass-card rounded-xl p-4">
-          <div className="flex items-center justify-between text-xs text-rose-800 font-semibold uppercase tracking-wider">
-            <span>Rejected</span>
-            <span className="font-mono text-slate-500">{rejectedPayments.length} items</span>
-          </div>
-          <div className="mt-1.5 text-2xl font-bold font-mono text-rose-700 tabular-nums">
-            ${rejectedPayments.reduce((acc, p) => acc + p.amount, 0).toLocaleString()}
-          </div>
-        </div>
-      </div>
-
-      {/* Filter Tabs & Search */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div className="flex items-center gap-1 p-1 bg-slate-100 border border-slate-200 rounded-lg">
-          <button
-            onClick={() => setActiveTab('pending')}
-            className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${
-              activeTab === 'pending'
-                ? 'bg-white text-slate-900 border border-slate-200 shadow-xs font-semibold'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            Pending ({pendingPayments.length})
-          </button>
-          <button
-            onClick={() => setActiveTab('all')}
-            className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${
-              activeTab === 'all'
-                ? 'bg-white text-slate-900 border border-slate-200 shadow-xs font-semibold'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            All ({payments.length})
-          </button>
-          <button
-            onClick={() => setActiveTab('audit')}
-            className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all flex items-center gap-1 ${
-              activeTab === 'audit'
-                ? 'bg-white text-slate-900 border border-slate-200 shadow-xs font-semibold'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            <History className="h-3 w-3" />
-            <span>Audit Trail</span>
-          </button>
-        </div>
-
-        {activeTab !== 'audit' && (
-          <div className="relative w-full sm:w-60">
-            <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400" />
-            <input
-              type="text"
-              placeholder="Search ref or student..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-8 pr-3 py-1.5 text-xs rounded-lg border border-slate-200 bg-white text-slate-900 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 placeholder:text-slate-400"
-            />
-          </div>
-        )}
-      </div>
-
-      {/* Table */}
-      {activeTab !== 'audit' ? (
-        <div className="emerald-glass-card rounded-xl overflow-hidden border border-slate-200 bg-white shadow-xs">
-          <div className="data-table-scroll">
-            <table className="w-full text-left text-xs">
-              <thead>
-                <tr className="border-b border-slate-200 bg-slate-50 text-slate-600 font-semibold">
-                  <SortableTableHeader label="Txn Ref" sortKey="transactionRef" sortConfig={paymentSortConfig} onSort={sortPayments} className="py-2.5 px-3" />
-                  <SortableTableHeader label="Student" sortKey="studentName" sortConfig={paymentSortConfig} onSort={sortPayments} className="py-2.5 px-3" />
-                  <SortableTableHeader label="Closer" sortKey="closerName" sortConfig={paymentSortConfig} onSort={sortPayments} className="py-2.5 px-3" />
-                  <SortableTableHeader label="Method" sortKey="paymentType" sortConfig={paymentSortConfig} onSort={sortPayments} className="py-2.5 px-3" />
-                  <SortableTableHeader label="Amount" sortKey="amount" sortConfig={paymentSortConfig} onSort={sortPayments} align="right" className="py-2.5 px-3" />
-                  <SortableTableHeader label="Status" sortKey="status" sortConfig={paymentSortConfig} onSort={sortPayments} align="center" className="py-2.5 px-3" />
-                  <th className="py-2.5 px-3 text-right">Action</th>
+      <div className="emerald-glass-card overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xs">
+        <div className="data-table-scroll">
+          <table className="w-full text-left text-xs">
+            <thead><tr className="border-b border-slate-200 bg-slate-50 text-slate-600">
+              <SortableTableHeader label="OR / Reference" sortKey="transactionRef" sortConfig={sortConfig} onSort={requestSort} className="px-3 py-2.5" />
+              <SortableTableHeader label="Student" sortKey="studentName" sortConfig={sortConfig} onSort={requestSort} className="px-3 py-2.5" />
+              <SortableTableHeader label="Closer" sortKey="closerName" sortConfig={sortConfig} onSort={requestSort} className="px-3 py-2.5" />
+              <SortableTableHeader label="Program" sortKey="program" sortConfig={sortConfig} onSort={requestSort} className="px-3 py-2.5" />
+              <SortableTableHeader label="Method" sortKey="paymentType" sortConfig={sortConfig} onSort={requestSort} className="px-3 py-2.5" />
+              <SortableTableHeader label="Amount" sortKey="amount" sortConfig={sortConfig} onSort={requestSort} align="right" className="px-3 py-2.5" />
+              <SortableTableHeader label="Status" sortKey="status" sortConfig={sortConfig} onSort={requestSort} align="center" className="px-3 py-2.5" />
+            </tr></thead>
+            <tbody className="divide-y divide-slate-100">
+              {sortedItems.length === 0 ? <tr><td colSpan={7} className="px-3 py-8 text-center text-slate-500">No matching Finance records.</td></tr> : sortedItems.map((payment) => (
+                <tr key={payment.id} className="hover:bg-slate-50/70">
+                  <td className="px-3 py-2.5 font-mono font-semibold text-slate-900">{payment.transactionRef}</td>
+                  <td className="px-3 py-2.5 font-medium text-slate-800">{payment.studentName}</td>
+                  <td className="px-3 py-2.5 text-slate-600">{payment.closerName}</td>
+                  <td className="px-3 py-2.5 text-slate-600">{payment.program}</td>
+                  <td className="px-3 py-2.5 text-slate-600">{payment.paymentType}</td>
+                  <td className="px-3 py-2.5 text-right font-mono font-bold text-emerald-700">{peso(payment.amount)}</td>
+                  <td className="px-3 py-2.5 text-center"><span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${payment.status === 'verified' ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : 'border-amber-300 bg-amber-50 text-amber-800'}`}>{payment.status === 'verified' ? 'Verified' : 'For verification'}</span></td>
                 </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 font-mono">
-                {filteredPayments.length === 0 ? (
-                  <tr>
-                    <td colSpan={7} className="py-8 text-center text-slate-500 font-sans">
-                      Queue is clear. No payments pending verification.
-                    </td>
-                  </tr>
-                ) : (
-                  sortedPayments.map((p) => {
-                    const isPending = p.status === 'pending';
-                    const isVerified = p.status === 'verified';
-
-                    return (
-                      <tr key={p.id} className="hover:bg-slate-50/70 transition-colors">
-                        <td className="py-2.5 px-3 text-slate-900 font-semibold">{p.transactionRef}</td>
-                        <td className="py-2.5 px-3 font-sans text-slate-800 font-medium">{p.studentName}</td>
-                        <td className="py-2.5 px-3 font-sans text-slate-600">{p.closerName}</td>
-                        <td className="py-2.5 px-3 font-sans text-slate-600">{p.paymentType}</td>
-                        <td className="py-2.5 px-3 text-right font-bold text-emerald-700 tabular-nums">
-                          ${p.amount.toLocaleString()}
-                        </td>
-                        <td className="py-2.5 px-3 text-center font-sans">
-                          {isPending ? (
-                            <span className="px-2 py-0.5 text-[10px] font-semibold rounded-full bg-amber-50 text-amber-800 border border-amber-300">
-                              Pending
-                            </span>
-                          ) : isVerified ? (
-                            <span className="px-2 py-0.5 text-[10px] font-semibold rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200">
-                              Verified
-                            </span>
-                          ) : (
-                            <span className="px-2 py-0.5 text-[10px] font-semibold rounded-full bg-rose-50 text-rose-800 border border-rose-200">
-                              Rejected
-                            </span>
-                          )}
-                        </td>
-                        <td className="py-2.5 px-3 text-right font-sans">
-                          {isPending ? (
-                            <div className="flex items-center justify-end gap-1.5">
-                              <button
-                                onClick={() => {
-                                  setVerifyModalPayment(p);
-                                  setVerificationNotes('');
-                                }}
-                                className="px-2.5 py-1 text-xs font-semibold rounded transition-all bg-emerald-600 text-white hover:bg-emerald-700 shadow-xs"
-                              >
-                                Verify
-                              </button>
-                              <button
-                                onClick={() => {
-                                  setRejectModalPayment(p);
-                                  setRejectionReason('');
-                                }}
-                                className="px-2 py-1 text-xs rounded border transition-colors border-rose-200 text-rose-700 bg-rose-50 hover:bg-rose-100"
-                              >
-                                Reject
-                              </button>
-                            </div>
-                          ) : (
-                            <span className="text-[11px] text-slate-400">Done</span>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
+              ))}
+            </tbody>
+          </table>
         </div>
-      ) : (
-        /* Audit Trail */
-        <div className="emerald-glass-card rounded-xl p-4 border border-slate-200 bg-white shadow-xs">
-          <div className="data-table-scroll">
-            <table className="w-full text-left text-xs font-mono">
-              <thead>
-                <tr className="border-b border-slate-200 text-slate-500 font-sans font-medium">
-                  <SortableTableHeader label="Time" sortKey="timestamp" sortConfig={auditSortConfig} onSort={sortAuditLogs} className="py-2 px-2.5" />
-                  <SortableTableHeader label="Txn Ref" sortKey="transactionRef" sortConfig={auditSortConfig} onSort={sortAuditLogs} className="py-2 px-2.5" />
-                  <SortableTableHeader label="Transition" sortKey="newStatus" sortConfig={auditSortConfig} onSort={sortAuditLogs} className="py-2 px-2.5" />
-                  <SortableTableHeader label="Officer" sortKey="officerName" sortConfig={auditSortConfig} onSort={sortAuditLogs} className="py-2 px-2.5" />
-                  <SortableTableHeader label="Note" sortKey="notes" sortConfig={auditSortConfig} onSort={sortAuditLogs} className="py-2 px-2.5" />
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {sortedAuditLogs.map((log) => (
-                  <tr key={log.id} className="hover:bg-slate-50/70">
-                    <td className="py-2 px-2.5 text-slate-500">{new Date(log.timestamp).toLocaleTimeString()}</td>
-                    <td className="py-2 px-2.5 text-slate-900 font-semibold">{log.transactionRef}</td>
-                    <td className="py-2 px-2.5">
-                      <span className={log.newStatus === 'verified' ? 'text-emerald-700 font-bold' : 'text-rose-700 font-bold'}>
-                        {log.newStatus.toUpperCase()}
-                      </span>
-                    </td>
-                    <td className="py-2 px-2.5 font-sans text-slate-800">{log.officerName}</td>
-                    <td className="py-2 px-2.5 font-sans text-slate-500 truncate max-w-xs">{log.notes}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      {/* Verify Modal */}
-      {verifyModalPayment && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-4">
-          <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl">
-            <h3 className="text-base font-bold text-slate-900 mb-2">Confirm Payment Verification</h3>
-            <p className="text-xs text-slate-600 mb-3">
-              Verify {verifyModalPayment.transactionRef} (${verifyModalPayment.amount.toLocaleString()}) for {verifyModalPayment.studentName}.
-            </p>
-            <div className="flex items-center justify-end gap-2 pt-3">
-              <button
-                onClick={() => setVerifyModalPayment(null)}
-                className="px-3 py-1.5 text-xs text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleVerifyConfirm}
-                className="px-3 py-1.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg shadow-xs transition-colors"
-              >
-                Confirm &amp; Sync
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Reject Modal */}
-      {rejectModalPayment && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-4">
-          <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl">
-            <h3 className="text-base font-bold text-slate-900 mb-2">Reject Payment Record</h3>
-            <textarea
-              value={rejectionReason}
-              onChange={(e) => setRejectionReason(e.target.value)}
-              rows={2}
-              className="w-full p-2 text-xs rounded-lg border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-rose-500"
-              placeholder="Reason for rejection..."
-            />
-            <div className="flex items-center justify-end gap-2 pt-3">
-              <button
-                onClick={() => setRejectModalPayment(null)}
-                className="px-3 py-1.5 text-xs text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleRejectConfirm}
-                className="px-3 py-1.5 text-xs font-semibold text-white bg-rose-600 hover:bg-rose-700 rounded-lg shadow-xs transition-colors"
-              >
-                Confirm Rejection
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Add Direct Payment Modal */}
-      {isAddPaymentOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-4">
-          <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl">
-            <h3 className="text-base font-bold text-slate-900 mb-3">Log Direct Payment</h3>
-            <form
-              onSubmit={async (e) => {
-                e.preventDefault();
-                const selectedStudent = students.find((s) => s.id === newStudentId);
-                if (!selectedStudent) return;
-
-                const savedPayment = await addPayment({
-                  transactionRef: newTxnRef.trim(),
-                  studentId: selectedStudent.id,
-                  amount: Number(newAmount),
-                  paymentType: newPaymentType,
-                  notes: newNotes
-                });
-                if (savedPayment) setIsAddPaymentOpen(false);
-              }}
-              className="space-y-3 text-xs"
-            >
-              <div>
-                <label className="block text-slate-700 font-medium mb-1">Student</label>
-                <select
-                  required
-                  value={newStudentId}
-                  onChange={(e) => setNewStudentId(e.target.value)}
-                  className="w-full p-2 rounded-lg border border-slate-200 bg-white text-slate-900 focus:outline-none focus:border-emerald-500"
-                >
-                  <option value="">Select a student</option>
-                  {students.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.fullName} ({s.program})
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="block text-slate-700 font-medium mb-1">Amount ($)</label>
-                  <input
-                    type="number"
-                    value={newAmount}
-                    onChange={(e) => setNewAmount(Number(e.target.value))}
-                    className="w-full p-2 rounded-lg border border-slate-200 bg-white text-emerald-700 font-mono font-bold focus:outline-none focus:border-emerald-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-slate-700 font-medium mb-1">Method</label>
-                  <input
-                    required
-                    list="direct-payment-method-options"
-                    value={newPaymentType}
-                    onChange={(e) => setNewPaymentType(e.target.value as PaymentType)}
-                    className="w-full p-2 rounded-lg border border-slate-200 bg-white text-slate-900 focus:outline-none focus:border-emerald-500"
-                  />
-                  <datalist id="direct-payment-method-options">
-                    {paymentTypeOptions.map((option) => <option key={option} value={option} />)}
-                  </datalist>
-                </div>
-              </div>
-              <div>
-                <label className="block text-slate-700 font-medium mb-1">Txn Ref</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. WIRE-88129"
-                  value={newTxnRef}
-                  onChange={(e) => setNewTxnRef(e.target.value)}
-                  className="w-full p-2 rounded-lg border border-slate-200 bg-white text-slate-900 font-mono focus:outline-none focus:border-emerald-500 placeholder:text-slate-400"
-                />
-              </div>
-              <div className="flex justify-end gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setIsAddPaymentOpen(false)}
-                  className="px-3 py-1.5 text-xs text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-3 py-1.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg shadow-xs transition-colors"
-                >
-                  Queue for Verification
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      </div>
     </div>
   );
+};
+
+const SummaryCard: React.FC<{ label: string; value: string; detail: string; icon: React.ReactNode; tone: 'amber' | 'emerald' | 'slate' }> = ({ label, value, detail, icon, tone }) => {
+  const toneClass = tone === 'amber' ? 'text-amber-800' : tone === 'emerald' ? 'text-emerald-800' : 'text-slate-700';
+  return <div className="emerald-glass-card rounded-xl p-4"><div className={`flex items-center justify-between text-xs font-semibold uppercase tracking-wider ${toneClass}`}><span>{label}</span>{icon}</div><div className="mt-1.5 truncate text-xl font-bold font-mono text-slate-900 tabular-nums">{value}</div><p className="mt-1 text-xs text-slate-500">{detail}</p></div>;
 };

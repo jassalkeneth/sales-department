@@ -218,7 +218,7 @@ export const KpiOverview: React.FC<KpiOverviewProps> = ({ onNavigateTab }) => {
               </span>
             </div>
             <div className="mt-3 text-3xl sm:text-4xl lg:text-[42px] font-extrabold font-mono tracking-tight text-slate-900 tabular-nums leading-none">
-              ${totalVerifiedSales.toLocaleString()}
+              ₱{totalVerifiedSales.toLocaleString()}
             </div>
             <TrendIndicator
               type={salesAchievementPct >= 100 ? 'up' : 'down'}
@@ -228,7 +228,7 @@ export const KpiOverview: React.FC<KpiOverviewProps> = ({ onNavigateTab }) => {
             />
           </div>
           <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500 font-mono">
-            <span>Target ${teamSalesTarget.toLocaleString()}</span>
+            <span>Target ₱{teamSalesTarget.toLocaleString()}</span>
             <span>{verifiedPayments.length} verified deals</span>
           </div>
         </div>
@@ -268,7 +268,7 @@ export const KpiOverview: React.FC<KpiOverviewProps> = ({ onNavigateTab }) => {
               </span>
             </div>
             <div className="mt-3 text-3xl sm:text-4xl lg:text-[42px] font-extrabold font-mono tracking-tight text-slate-900 tabular-nums leading-none">
-              ${totalVerifiedCollections.toLocaleString()}
+              ₱{totalVerifiedCollections.toLocaleString()}
             </div>
             <TrendIndicator
               type={collectionAchievementPct >= 100 ? 'up' : 'down'}
@@ -294,7 +294,7 @@ export const KpiOverview: React.FC<KpiOverviewProps> = ({ onNavigateTab }) => {
               <ArrowUpRight className="h-3.5 w-3.5 text-amber-600 group-hover:translate-x-0.5 transition-transform" />
             </div>
             <div className="mt-3 text-3xl sm:text-4xl lg:text-[42px] font-extrabold font-mono tracking-tight text-amber-600 tabular-nums leading-none">
-              ${totalPendingCollections.toLocaleString()}
+              ₱{totalPendingCollections.toLocaleString()}
             </div>
             <TrendIndicator
               type={hasPending ? 'down' : 'up'}
@@ -317,7 +317,7 @@ export const KpiOverview: React.FC<KpiOverviewProps> = ({ onNavigateTab }) => {
         </div>
         <div>
           <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Average Sale Value</div>
-          <div className="mt-1 text-xl font-bold font-mono text-slate-900">${Math.round(avgSaleValue).toLocaleString()}</div>
+          <div className="mt-1 text-xl font-bold font-mono text-slate-900">₱{Math.round(avgSaleValue).toLocaleString()}</div>
         </div>
         <div>
           <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Closers On Quota</div>
@@ -387,15 +387,15 @@ export const KpiOverview: React.FC<KpiOverviewProps> = ({ onNavigateTab }) => {
                       </td>
 
                       <td className="py-3 px-3 text-right font-semibold text-slate-900 tabular-nums">
-                        ${perf.actualSales.toLocaleString()}
+                        ₱{perf.actualSales.toLocaleString()}
                       </td>
 
                       <td className="py-3 px-3 text-right font-medium text-emerald-700 tabular-nums">
-                        ${perf.actualCollections.toLocaleString()}
+                        ₱{perf.actualCollections.toLocaleString()}
                       </td>
 
                       <td className="py-3 px-3 text-right text-slate-500 tabular-nums">
-                        ${perf.closer.quota.monthlyTarget.toLocaleString()}
+                        ₱{perf.closer.quota.monthlyTarget.toLocaleString()}
                       </td>
 
                       <td className="py-3 px-3 text-center">
@@ -415,7 +415,7 @@ export const KpiOverview: React.FC<KpiOverviewProps> = ({ onNavigateTab }) => {
                           <span className="text-emerald-700 text-[11px] font-sans font-semibold">Done</span>
                         ) : (
                           <span className="text-slate-500">
-                            ${perf.remainingSalesTarget.toLocaleString()}
+                            ₱{perf.remainingSalesTarget.toLocaleString()}
                           </span>
                         )}
                       </td>
@@ -462,7 +462,7 @@ export const KpiOverview: React.FC<KpiOverviewProps> = ({ onNavigateTab }) => {
                     </div>
                     <div className="text-right shrink-0">
                       <div className="font-bold font-mono text-amber-700 tabular-nums">
-                        ${p.amount.toLocaleString()}
+                        ₱{p.amount.toLocaleString()}
                       </div>
                       <button
                         onClick={() => verifyPayment(p.id, 'Verified via dashboard')}
@@ -489,7 +489,7 @@ export const KpiOverview: React.FC<KpiOverviewProps> = ({ onNavigateTab }) => {
                   <div key={prog}>
                     <div className="flex items-center justify-between text-xs mb-1">
                       <span className="font-sans text-slate-700 font-medium truncate max-w-[160px]">{prog}</span>
-                      <span className="font-bold text-slate-900 tabular-nums">${amount.toLocaleString()}</span>
+                      <span className="font-bold text-slate-900 tabular-nums">₱{amount.toLocaleString()}</span>
                     </div>
                     <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden border border-slate-200">
                       <div

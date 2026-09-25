@@ -27,8 +27,8 @@ export const WorkflowVisualizer: React.FC<WorkflowVisualizerProps> = ({ onSelect
     { id: 'step-enroll', title: '2. Enrolled', count: `${students.length}`, targetTab: 'attribution', icon: CheckCircle2 },
     { id: 'step-finance', title: '3. Finance Queue', count: `${pendingCount} pend · ${verifiedCount} ver`, targetTab: 'finance', icon: CreditCard, highlight: pendingCount > 0 },
     { id: 'step-sync', title: '4. Data Sync', count: 'Real-time', targetTab: 'api_sync', icon: RefreshCw },
-    { id: 'step-reporting', title: '5. Attribution DB', count: `$${(totalVerifiedSales / 1000).toFixed(0)}k Booked`, targetTab: 'attribution', icon: Database },
-    { id: 'step-kpi', title: '6. Quota Engine', count: `$${(totalVerifiedCollections / 1000).toFixed(0)}k Cash`, targetTab: 'dashboard', icon: BarChart3 }
+    { id: 'step-reporting', title: '5. Attribution DB', count: `₱${(totalVerifiedSales / 1000).toFixed(0)}k Booked`, targetTab: 'attribution', icon: Database },
+    { id: 'step-kpi', title: '6. Quota Engine', count: `₱${(totalVerifiedCollections / 1000).toFixed(0)}k Cash`, targetTab: 'dashboard', icon: BarChart3 }
   ];
 
   return (

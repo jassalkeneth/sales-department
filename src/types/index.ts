@@ -73,6 +73,18 @@ export interface PaymentRecord {
   verifiedBy?: string;
   financeNotes?: string;
   isDuplicateFlag?: boolean;
+  incomeProduct?: string;
+}
+
+export interface FinanceSyncStatus {
+  source: string;
+  sourceRecords: number;
+  importedRecords: number;
+  verifiedRecords: number;
+  pendingRecords: number;
+  skipped: Record<string, number>;
+  sourceUpdatedAt?: string;
+  syncedAt: string;
 }
 
 export interface CloserQuota {

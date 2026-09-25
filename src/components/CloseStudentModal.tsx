@@ -190,7 +190,7 @@ export const CloseStudentModal: React.FC<CloseStudentModalProps> = ({
           {/* Deal Value & Payment Plan */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="block text-slate-700 font-medium mb-1">Total Contract Value ($)</label>
+              <label className="block text-slate-700 font-medium mb-1">Total Contract Value (PHP)</label>
               <input
                 type="number"
                 min={500}
@@ -223,7 +223,7 @@ export const CloseStudentModal: React.FC<CloseStudentModalProps> = ({
             </h4>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
-                <label className="block text-slate-600 font-medium mb-1">Amount Submitted ($)</label>
+                <label className="block text-slate-600 font-medium mb-1">Amount Submitted (PHP)</label>
                 <input
                   type="number"
                   min={100}
