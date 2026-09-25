@@ -103,9 +103,15 @@ export const CloserPerformanceView: React.FC = () => {
           return (
             <div
               key={perf.closer.id}
-              className={`rounded-2xl border p-5 relative overflow-hidden shadow-xs ${badgeColor}`}
+              className={`isolate rounded-2xl border p-5 relative overflow-hidden shadow-xs ${badgeColor}`}
             >
-              <div className="flex items-start justify-between mb-3">
+              <CloserAnalyticsBackground
+                bookedSales={perf.actualSales}
+                collections={perf.actualCollections}
+                pending={perf.pendingCollections}
+              />
+
+              <div className="relative z-10 flex items-start justify-between mb-3">
                 <div className="flex items-center gap-3">
                   <div className="relative">
                     <ProfileInitials name={perf.closer.name} className={`h-12 w-12 text-sm ring-2 ${ringColor}`} />
@@ -130,7 +136,7 @@ export const CloserPerformanceView: React.FC = () => {
               </div>
 
               {/* Metrics Grid */}
-              <div className="grid grid-cols-2 gap-2 mt-4 pt-3 border-t border-slate-200/80 text-xs font-mono">
+              <div className="relative z-10 grid grid-cols-2 gap-2 mt-4 pt-3 border-t border-slate-200/80 text-xs font-mono">
                 <div>
                   <span className="text-slate-500 text-[10px] font-sans font-medium">Booked Sales</span>
                   <div className="text-base font-bold text-slate-900 tabular-nums">
@@ -152,7 +158,7 @@ export const CloserPerformanceView: React.FC = () => {
               </div>
 
               {/* Progress */}
-              <div className="mt-3">
+              <div className="relative z-10 mt-3">
                 <div className="flex justify-between text-[11px] mb-1 font-medium">
                   <span className="text-slate-600">Quota Achievement</span>
                   <span className="font-mono font-bold text-slate-900 tabular-nums">
@@ -169,7 +175,7 @@ export const CloserPerformanceView: React.FC = () => {
                 </div>
               </div>
 
-              <div className="mt-3 pt-2.5 border-t border-slate-200/60 flex items-center justify-between text-[11px]">
+              <div className="relative z-10 mt-3 pt-2.5 border-t border-slate-200/60 flex items-center justify-between text-[11px]">
                 <span className="text-slate-600 font-medium">Est. Commission:</span>
                 <span className="font-mono font-bold text-indigo-700 tabular-nums">
                   ₱{Math.round(perf.estimatedCommissions).toLocaleString()}
@@ -367,6 +373,43 @@ export const CloserPerformanceView: React.FC = () => {
           </div>
         </div>
       )}
+    </div>
+  );
+};
+
+const CloserAnalyticsBackground: React.FC<{
+  bookedSales: number;
+  collections: number;
+  pending: number;
+}> = ({ bookedSales, collections, pending }) => {
+  const gradientId = React.useId();
+  const values = [bookedSales, collections, pending];
+  const maximum = Math.max(1, ...values);
+  const points = values.map((value, index) => ({
+    x: 16 + (index * 34),
+    y: 43 - ((value / maximum) * 30),
+    height: Math.max(2, (value / maximum) * 30)
+  }));
+
+  return (
+    <div className="pointer-events-none absolute inset-x-0 bottom-0 z-0 h-36 overflow-hidden opacity-[0.16]" aria-hidden="true">
+      <svg viewBox="0 0 100 50" preserveAspectRatio="none" className="h-full w-full text-emerald-600">
+        <defs>
+          <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="currentColor" stopOpacity="0.55" />
+            <stop offset="100%" stopColor="currentColor" stopOpacity="0.04" />
+          </linearGradient>
+        </defs>
+        {[12, 24, 36, 48].map((y) => (
+          <line key={y} x1="0" y1={y} x2="100" y2={y} stroke="currentColor" strokeWidth="0.25" strokeDasharray="2 3" />
+        ))}
+        {points.map((point, index) => (
+          <rect key={point.x} x={point.x - 6} y={point.y} width="12" height={point.height} rx="2" fill={`url(#${gradientId})`} opacity={0.55 + (index * 0.15)} />
+        ))}
+        <polyline points={points.map((point) => `${point.x},${point.y}`).join(' ')} fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+        {points.map((point) => <circle key={`${point.x}-dot`} cx={point.x} cy={point.y} r="1.4" fill="white" stroke="currentColor" strokeWidth="0.8" />)}
+      </svg>
+      <div className="absolute inset-0 bg-gradient-to-t from-transparent via-white/20 to-white/80" />
     </div>
   );
 };
