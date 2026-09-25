@@ -43,4 +43,14 @@ class CentralFinanceClient
 
         return $transactions;
     }
+
+    public function latestChangeId(): int
+    {
+        $response = $this->client()->get('/api/changes', [
+            'after_id' => 0,
+            'limit' => 1,
+        ])->throw()->json();
+
+        return (int) ($response['cursor']['latest_id'] ?? 0);
+    }
 }

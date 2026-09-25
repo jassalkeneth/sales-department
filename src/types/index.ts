@@ -77,6 +77,7 @@ export interface PaymentRecord {
 }
 
 export interface FinanceSyncStatus {
+  state: 'waiting' | 'syncing' | 'ready' | 'failed';
   source: string;
   sourceRecords: number;
   importedRecords: number;
@@ -88,8 +89,10 @@ export interface FinanceSyncStatus {
     unassignedRecords: number;
     fallbackCloserRecords: number;
   };
-  sourceUpdatedAt?: string;
-  syncedAt: string;
+  sourceUpdatedAt?: string | null;
+  syncedAt: string | null;
+  checkedAt?: string | null;
+  error?: string | null;
 }
 
 export interface SalesDatabaseIntegrity {

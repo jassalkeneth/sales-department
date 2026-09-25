@@ -3,25 +3,18 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Services\FinanceDataSyncService;
+use App\Services\FinanceSyncWorkflow;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Cache;
 
 class FinanceSyncController extends Controller
 {
-    public function __invoke(Request $request, FinanceDataSyncService $sync): JsonResponse
+    public function sync(FinanceSyncWorkflow $workflow): JsonResponse
     {
-        if ($request->boolean('force')) {
-            Cache::forget('sales.finance-sync.result');
-        }
+        return response()->json($workflow->run());
+    }
 
-        $result = Cache::remember(
-            'sales.finance-sync.result',
-            now()->addMinutes(5),
-            fn (): array => $sync->sync(),
-        );
-
-        return response()->json($result);
+    public function status(FinanceSyncWorkflow $workflow): JsonResponse
+    {
+        return response()->json($workflow->status());
     }
 }

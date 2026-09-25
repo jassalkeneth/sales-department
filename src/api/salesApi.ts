@@ -185,9 +185,8 @@ export const salesApi = {
     return request(path);
   },
 
-  async loadDashboard(forceFinanceSync = false) {
-    const financeSync = await request<FinanceSyncStatus>(`/finance-sync${forceFinanceSync ? '?force=1' : ''}`, { method: 'POST' });
-    const dashboard = await request<{
+  async loadDashboard() {
+    const [dashboard, financeSync] = await Promise.all([request<{
       closers: ApiRecord[];
       leads: ApiRecord[];
       students: ApiRecord[];
@@ -200,7 +199,7 @@ export const salesApi = {
         orphanedClosers: number;
       };
       fetchedAt: string;
-    }>('/sales-dashboard');
+    }>('/sales-dashboard'), request<FinanceSyncStatus>('/finance-sync/status')]);
 
     return {
       closers: dashboard.closers.map(mapCloser),
@@ -213,6 +212,14 @@ export const salesApi = {
       fetchedAt: dashboard.fetchedAt,
       financeSync
     };
+  },
+
+  financeSyncStatus(): Promise<FinanceSyncStatus> {
+    return request('/finance-sync/status');
+  },
+
+  syncFinance(): Promise<FinanceSyncStatus> {
+    return request('/finance-sync', { method: 'POST' });
   },
 
   async createLead(lead: Omit<Lead, 'id' | 'createdAt' | 'lastActivityAt'>): Promise<Lead> {

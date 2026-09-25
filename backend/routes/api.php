@@ -21,7 +21,8 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::apiResource('students', StudentEnrollmentController::class);
     Route::apiResource('payments', PaymentController::class)->except(['update', 'destroy']);
     Route::post('payments/{payment}/verify', [PaymentController::class, 'verify']);
-    Route::post('finance-sync', FinanceSyncController::class);
+    Route::post('finance-sync', [FinanceSyncController::class, 'sync']);
+    Route::get('finance-sync/status', [FinanceSyncController::class, 'status']);
     Route::get('sales-dashboard', SalesDashboardController::class);
 
     Route::get('performance', [PerformanceController::class, 'index']);

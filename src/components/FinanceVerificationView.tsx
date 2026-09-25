@@ -11,7 +11,7 @@ const peso = (value: number) => new Intl.NumberFormat('en-PH', {
 }).format(value);
 
 export const FinanceVerificationView: React.FC = () => {
-  const { payments, financeSync, databaseIntegrity, refreshData, isLoading } = useSalesWorkflow();
+  const { payments, financeSync, databaseIntegrity, refreshData, isSyncingFinance } = useSalesWorkflow();
   const [activeTab, setActiveTab] = useState<'pending' | 'all'>('pending');
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -41,15 +41,15 @@ export const FinanceVerificationView: React.FC = () => {
           <h1 className="text-xl font-bold tracking-tight text-slate-900 sm:text-2xl">Finance Verification</h1>
           <p className="mt-1 text-xs text-slate-500">Read-only Finance verification from TMT Central. Decisions must be made in Finance.</p>
         </div>
-        <button type="button" onClick={() => void refreshData()} disabled={isLoading} className="inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white shadow-xs transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60">
-          <RefreshCw className={`h-3.5 w-3.5 ${isLoading ? 'animate-spin' : ''}`} /> Sync Finance data
+        <button type="button" onClick={() => void refreshData()} disabled={isSyncingFinance} className="inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white shadow-xs transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60">
+          <RefreshCw className={`h-3.5 w-3.5 ${isSyncingFinance ? 'animate-spin' : ''}`} /> {isSyncingFinance ? 'Syncing in background' : 'Sync Finance data'}
         </button>
       </div>
 
       <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-3">
         <SummaryCard label="For verification" value={peso(pendingPayments.reduce((sum, payment) => sum + payment.amount, 0))} detail={`${pendingPayments.length.toLocaleString()} Finance records`} icon={<Clock3 className="h-4 w-4" />} tone="amber" />
         <SummaryCard label="Finance verified" value={peso(verifiedPayments.reduce((sum, payment) => sum + payment.amount, 0))} detail={`${verifiedPayments.length.toLocaleString()} Finance records`} icon={<CheckCircle2 className="h-4 w-4" />} tone="emerald" />
-        <SummaryCard label="Source status" value={financeSync?.source ?? 'TMT Central / Finance'} detail={financeSync ? `${financeSync.importedRecords.toLocaleString()} valid records · ${databaseIntegrity?.orphanedStudents === 0 && databaseIntegrity?.orphanedClosers === 0 ? 'relationships verified' : 'relationship issue detected'} · source updated ${financeSync.sourceUpdatedAt ? new Date(financeSync.sourceUpdatedAt).toLocaleString() : 'unknown'} · synced ${new Date(financeSync.syncedAt).toLocaleString()}` : 'Waiting for source sync'} icon={<Database className="h-4 w-4" />} tone="slate" />
+        <SummaryCard label="Source status" value={financeSync?.state === 'syncing' ? 'Background sync running' : financeSync?.source ?? 'TMT Central / Finance'} detail={financeSync ? `${financeSync.importedRecords.toLocaleString()} valid records · ${databaseIntegrity?.orphanedStudents === 0 && databaseIntegrity?.orphanedClosers === 0 ? 'relationships verified' : 'relationship issue detected'} · source updated ${financeSync.sourceUpdatedAt ? new Date(financeSync.sourceUpdatedAt).toLocaleString() : 'unknown'} · synced ${financeSync.syncedAt ? new Date(financeSync.syncedAt).toLocaleString() : 'waiting'}` : 'Waiting for source sync'} icon={<Database className="h-4 w-4" />} tone="slate" />
       </div>
 
       {financeSync && Object.values(financeSync.skipped).some((count) => count > 0) && (

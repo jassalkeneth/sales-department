@@ -21,6 +21,10 @@ class FinanceDataSyncTest extends TestCase
             'services.tmt_finance.api_key' => 'read-only-test-key',
         ]);
         Http::fake([
+            'http://central.test/api/changes*' => Http::response([
+                'changes' => [],
+                'cursor' => ['latest_id' => 100, 'has_more' => false],
+            ]),
             'http://central.test/api/transactions*' => Http::response([
                 'data' => [
                     $this->transaction(101, 'OR-101', 1000.25, 'verified', 'New Premium'),
@@ -60,6 +64,11 @@ class FinanceDataSyncTest extends TestCase
             'finance_verification_status' => 'for_verification',
         ]);
         $this->assertSame(1000.25, Payment::where('finance_transaction_id', 101)->firstOrFail()->amount);
+
+        $this->getJson('/api/finance-sync/status')
+            ->assertOk()
+            ->assertJsonPath('state', 'ready')
+            ->assertJsonPath('importedRecords', 2);
     }
 
     public function test_performance_uses_finance_sales_classification_and_marginal_commission_rate(): void
@@ -69,6 +78,10 @@ class FinanceDataSyncTest extends TestCase
             'services.tmt_finance.api_key' => 'read-only-test-key',
         ]);
         Http::fake([
+            'http://central.test/api/changes*' => Http::response([
+                'changes' => [],
+                'cursor' => ['latest_id' => 200, 'has_more' => false],
+            ]),
             'http://central.test/api/transactions*' => Http::response([
                 'data' => [
                     $this->transaction(201, 'OR-201', 1000, 'verified', 'New Premium'),
@@ -95,6 +108,37 @@ class FinanceDataSyncTest extends TestCase
             ->assertJsonPath('0.estimatedCommissions', 200);
     }
 
+    public function test_it_skips_the_full_import_when_the_central_cursor_has_not_changed(): void
+    {
+        config([
+            'services.tmt_finance.base_url' => 'http://central.test',
+            'services.tmt_finance.api_key' => 'read-only-test-key',
+        ]);
+        Http::fake([
+            'http://central.test/api/changes*' => Http::response([
+                'changes' => [],
+                'cursor' => ['latest_id' => 250, 'has_more' => false],
+            ]),
+            'http://central.test/api/transactions*' => Http::response([
+                'data' => [$this->transaction(250, 'OR-250', 1000, 'verified', 'New Premium')],
+                'pagination' => ['page' => 1, 'totalPages' => 1, 'totalRows' => 1],
+            ]),
+        ]);
+        Sanctum::actingAs(User::factory()->create());
+
+        $this->postJson('/api/finance-sync')
+            ->assertOk()
+            ->assertJsonPath('changed', true);
+
+        $this->postJson('/api/finance-sync')
+            ->assertOk()
+            ->assertJsonPath('state', 'ready')
+            ->assertJsonPath('changed', false);
+
+        Http::assertSentCount(3);
+        $this->assertDatabaseCount('payments', 1);
+    }
+
     public function test_it_distinguishes_na_unassigned_and_valid_base_closer_fallbacks(): void
     {
         config([
@@ -102,6 +146,10 @@ class FinanceDataSyncTest extends TestCase
             'services.tmt_finance.api_key' => 'read-only-test-key',
         ]);
         Http::fake([
+            'http://central.test/api/changes*' => Http::response([
+                'changes' => [],
+                'cursor' => ['latest_id' => 300, 'has_more' => false],
+            ]),
             'http://central.test/api/transactions*' => Http::response([
                 'data' => [
                     $this->transaction(301, 'OR-301', 1000, 'verified', 'New Premium', [

@@ -1,0 +1,11 @@
+[Unit]
+Description=Synchronize TMT Central Finance data into Sales MySQL
+After=network.target mysql.service
+
+[Service]
+Type=oneshot
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/sales-department/backend
+ExecStart=/usr/bin/php8.3 artisan sales:sync-finance --no-interaction
+TimeoutStartSec=55

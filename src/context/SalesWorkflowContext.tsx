@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo, useRef } from 'react';
 import {
   Closer,
   Lead,
@@ -18,6 +18,7 @@ import { salesApi } from '../api/salesApi';
 
 interface SalesWorkflowContextType {
   isLoading: boolean;
+  isSyncingFinance: boolean;
   connectionError: string | null;
   refreshData: () => Promise<void>;
   
@@ -118,6 +119,7 @@ const SalesWorkflowContext = createContext<SalesWorkflowContextType | null>(null
 
 export const SalesWorkflowProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [isLoading, setIsLoading] = useState(true);
+  const [isSyncingFinance, setIsSyncingFinance] = useState(false);
   const [connectionError, setConnectionError] = useState<string | null>(null);
 
   // Closers & Quotas
@@ -139,6 +141,7 @@ export const SalesWorkflowProvider: React.FC<{ children: React.ReactNode }> = ({
   const [auditLogs, setAuditLogs] = useState<VerificationAuditLog[]>([]);
   const [financeSync, setFinanceSync] = useState<FinanceSyncStatus | null>(null);
   const [databaseIntegrity, setDatabaseIntegrity] = useState<SalesDatabaseIntegrity | null>(null);
+  const lastFinanceSyncRef = useRef<string | null>(null);
 
   // Filters State
   const initialFilter: FilterState = {
@@ -177,20 +180,26 @@ export const SalesWorkflowProvider: React.FC<{ children: React.ReactNode }> = ({
     setSyncEvents(data.syncEvents);
     setAuditLogs(data.auditLogs);
     setFinanceSync(data.financeSync);
+    lastFinanceSyncRef.current = data.financeSync.syncedAt;
     setDatabaseIntegrity(data.integrity);
   };
 
   const refreshData = async () => {
-    setIsLoading(true);
+    setIsSyncingFinance(true);
     try {
-      applyDashboardData(await salesApi.loadDashboard(true));
+      const sync = await salesApi.syncFinance();
+      if (sync.state === 'ready') {
+        applyDashboardData(await salesApi.loadDashboard());
+      } else {
+        setFinanceSync(sync);
+      }
       setConnectionError(null);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unable to reach the sales API.';
       setConnectionError(message);
       throw error;
     } finally {
-      setIsLoading(false);
+      setIsSyncingFinance(false);
     }
   };
 
@@ -210,8 +219,27 @@ export const SalesWorkflowProvider: React.FC<{ children: React.ReactNode }> = ({
         if (isMounted) setIsLoading(false);
       });
 
+    const poll = window.setInterval(async () => {
+      try {
+        const status = await salesApi.financeSyncStatus();
+        if (!isMounted) return;
+        setFinanceSync(status);
+        setIsSyncingFinance(status.state === 'syncing');
+
+        if (status.state === 'ready' && status.syncedAt && status.syncedAt !== lastFinanceSyncRef.current) {
+          applyDashboardData(await salesApi.loadDashboard());
+          setConnectionError(null);
+        }
+      } catch (error) {
+        if (isMounted) {
+          setConnectionError(error instanceof Error ? error.message : 'Unable to refresh Sales data.');
+        }
+      }
+    }, 10000);
+
     return () => {
       isMounted = false;
+      window.clearInterval(poll);
     };
   }, []);
 
@@ -676,6 +704,7 @@ export const SalesWorkflowProvider: React.FC<{ children: React.ReactNode }> = ({
     <SalesWorkflowContext.Provider
       value={{
         isLoading,
+        isSyncingFinance,
         connectionError,
         refreshData,
         closers,
