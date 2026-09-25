@@ -31,6 +31,70 @@ class WorkflowConnectionTest extends TestCase
         }
     }
 
+    public function test_sales_dashboard_returns_one_consistent_related_database_snapshot(): void
+    {
+        Sanctum::actingAs(User::factory()->create());
+        $closer = Closer::create([
+            'id' => 'closer-dashboard-test',
+            'name' => 'Dashboard Test Closer',
+            'email' => 'dashboard-closer@example.com',
+            'title' => 'Sales Closer',
+            'avatar_url' => null,
+            'monthly_target' => 0,
+            'collection_target' => 0,
+            'effective_period' => now()->format('F Y'),
+            'base_commission_pct' => 0,
+            'accelerator_pct' => 0,
+        ]);
+        $student = StudentEnrollment::create([
+            'id' => 'student-dashboard-test',
+            'lead_id' => null,
+            'full_name' => 'Dashboard Student',
+            'email' => 'dashboard-student@example.com',
+            'phone' => '+639000000000',
+            'program' => 'Premium',
+            'tier' => 'Premium',
+            'assigned_closer_id' => $closer->id,
+            'total_contract_value' => 25000,
+            'payment_plan' => 'Full Upfront',
+            'enrolled_at' => now(),
+            'finance_status' => 'fully_collected',
+        ]);
+        Payment::create([
+            'id' => 'payment-dashboard-test',
+            'finance_transaction_id' => 9001,
+            'transaction_ref' => 'OR-DASHBOARD-TEST',
+            'student_id' => $student->id,
+            'student_name' => $student->full_name,
+            'closer_id' => $closer->id,
+            'closer_name' => $closer->name,
+            'program' => $student->program,
+            'amount' => 25000,
+            'payment_type' => 'Bank Transfer',
+            'income_product' => 'New Premium',
+            'installment_number' => 1,
+            'total_installments' => 1,
+            'status' => 'verified',
+            'finance_verification_status' => 'verified',
+            'created_at_source' => now(),
+            'verified_at' => now(),
+            'finance_updated_at' => now(),
+            'verified_by' => 'Finance Officer',
+            'finance_notes' => null,
+            'is_duplicate_flag' => false,
+        ]);
+
+        $this->getJson('/api/sales-dashboard')
+            ->assertOk()
+            ->assertJsonPath('closers.0.id', $closer->id)
+            ->assertJsonPath('students.0.assigned_closer_id', $closer->id)
+            ->assertJsonPath('payments.0.student_id', $student->id)
+            ->assertJsonPath('payments.0.closer_id', $closer->id)
+            ->assertJsonPath('integrity.financeRecords', 1)
+            ->assertJsonPath('integrity.orphanedStudents', 0)
+            ->assertJsonPath('integrity.orphanedClosers', 0);
+    }
+
     public function test_local_payment_cannot_override_finance_verification(): void
     {
         Sanctum::actingAs(User::factory()->create());

@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\FinanceSyncController;
 use App\Http\Controllers\Api\LeadController;
 use App\Http\Controllers\Api\PaymentController;
 use App\Http\Controllers\Api\PerformanceController;
+use App\Http\Controllers\Api\SalesDashboardController;
 use App\Http\Controllers\Api\StudentEnrollmentController;
 use Illuminate\Support\Facades\Route;
 
@@ -21,6 +22,7 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::apiResource('payments', PaymentController::class)->except(['update', 'destroy']);
     Route::post('payments/{payment}/verify', [PaymentController::class, 'verify']);
     Route::post('finance-sync', FinanceSyncController::class);
+    Route::get('sales-dashboard', SalesDashboardController::class);
 
     Route::get('performance', [PerformanceController::class, 'index']);
     Route::get('sync-events', [PerformanceController::class, 'syncEvents']);

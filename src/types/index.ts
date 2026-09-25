@@ -87,6 +87,12 @@ export interface FinanceSyncStatus {
   syncedAt: string;
 }
 
+export interface SalesDatabaseIntegrity {
+  financeRecords: number;
+  orphanedStudents: number;
+  orphanedClosers: number;
+}
+
 export interface CloserQuota {
   closerId: string;
   monthlyTarget: number; // Target booked sales ($)

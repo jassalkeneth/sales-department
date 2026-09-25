@@ -11,7 +11,7 @@ const peso = (value: number) => new Intl.NumberFormat('en-PH', {
 }).format(value);
 
 export const FinanceVerificationView: React.FC = () => {
-  const { payments, financeSync, refreshData, isLoading } = useSalesWorkflow();
+  const { payments, financeSync, databaseIntegrity, refreshData, isLoading } = useSalesWorkflow();
   const [activeTab, setActiveTab] = useState<'pending' | 'all'>('pending');
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -49,7 +49,7 @@ export const FinanceVerificationView: React.FC = () => {
       <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-3">
         <SummaryCard label="For verification" value={peso(pendingPayments.reduce((sum, payment) => sum + payment.amount, 0))} detail={`${pendingPayments.length.toLocaleString()} Finance records`} icon={<Clock3 className="h-4 w-4" />} tone="amber" />
         <SummaryCard label="Finance verified" value={peso(verifiedPayments.reduce((sum, payment) => sum + payment.amount, 0))} detail={`${verifiedPayments.length.toLocaleString()} Finance records`} icon={<CheckCircle2 className="h-4 w-4" />} tone="emerald" />
-        <SummaryCard label="Source status" value={financeSync?.source ?? 'TMT Central / Finance'} detail={financeSync ? `${financeSync.importedRecords.toLocaleString()} valid records · source updated ${financeSync.sourceUpdatedAt ? new Date(financeSync.sourceUpdatedAt).toLocaleString() : 'unknown'} · synced ${new Date(financeSync.syncedAt).toLocaleString()}` : 'Waiting for source sync'} icon={<Database className="h-4 w-4" />} tone="slate" />
+        <SummaryCard label="Source status" value={financeSync?.source ?? 'TMT Central / Finance'} detail={financeSync ? `${financeSync.importedRecords.toLocaleString()} valid records · ${databaseIntegrity?.orphanedStudents === 0 && databaseIntegrity?.orphanedClosers === 0 ? 'relationships verified' : 'relationship issue detected'} · source updated ${financeSync.sourceUpdatedAt ? new Date(financeSync.sourceUpdatedAt).toLocaleString() : 'unknown'} · synced ${new Date(financeSync.syncedAt).toLocaleString()}` : 'Waiting for source sync'} icon={<Database className="h-4 w-4" />} tone="slate" />
       </div>
 
       {financeSync && Object.values(financeSync.skipped).some((count) => count > 0) && (

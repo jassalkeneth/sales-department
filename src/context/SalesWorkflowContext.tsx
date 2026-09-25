@@ -9,6 +9,7 @@ import {
   CloserPerformance,
   FilterState,
   FinanceSyncStatus,
+  SalesDatabaseIntegrity,
   LeadStage,
   PaymentType,
   ProgramType
@@ -32,6 +33,7 @@ interface SalesWorkflowContextType {
   effectivePeriod: string | null;
   filteredVerifiedPayments: PaymentRecord[];
   financeSync: FinanceSyncStatus | null;
+  databaseIntegrity: SalesDatabaseIntegrity | null;
 
   // Filters
   filter: FilterState;
@@ -136,6 +138,7 @@ export const SalesWorkflowProvider: React.FC<{ children: React.ReactNode }> = ({
   // Verification Audit Logs
   const [auditLogs, setAuditLogs] = useState<VerificationAuditLog[]>([]);
   const [financeSync, setFinanceSync] = useState<FinanceSyncStatus | null>(null);
+  const [databaseIntegrity, setDatabaseIntegrity] = useState<SalesDatabaseIntegrity | null>(null);
 
   // Filters State
   const initialFilter: FilterState = {
@@ -174,6 +177,7 @@ export const SalesWorkflowProvider: React.FC<{ children: React.ReactNode }> = ({
     setSyncEvents(data.syncEvents);
     setAuditLogs(data.auditLogs);
     setFinanceSync(data.financeSync);
+    setDatabaseIntegrity(data.integrity);
   };
 
   const refreshData = async () => {
@@ -685,6 +689,7 @@ export const SalesWorkflowProvider: React.FC<{ children: React.ReactNode }> = ({
         effectivePeriod,
         filteredVerifiedPayments,
         financeSync,
+        databaseIntegrity,
         filter,
         setFilter,
         resetFilters,

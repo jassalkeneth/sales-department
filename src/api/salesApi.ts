@@ -187,22 +187,30 @@ export const salesApi = {
 
   async loadDashboard(forceFinanceSync = false) {
     const financeSync = await request<FinanceSyncStatus>(`/finance-sync${forceFinanceSync ? '?force=1' : ''}`, { method: 'POST' });
-    const [closers, leads, students, payments, syncEvents, auditLogs] = await Promise.all([
-      request<ApiRecord[]>('/closers'),
-      request<ApiRecord[]>('/leads'),
-      request<ApiRecord[]>('/students'),
-      request<ApiRecord[]>('/payments'),
-      request<ApiRecord[]>('/sync-events'),
-      request<ApiRecord[]>('/audit-logs')
-    ]);
+    const dashboard = await request<{
+      closers: ApiRecord[];
+      leads: ApiRecord[];
+      students: ApiRecord[];
+      payments: ApiRecord[];
+      syncEvents: ApiRecord[];
+      auditLogs: ApiRecord[];
+      integrity: {
+        financeRecords: number;
+        orphanedStudents: number;
+        orphanedClosers: number;
+      };
+      fetchedAt: string;
+    }>('/sales-dashboard');
 
     return {
-      closers: closers.map(mapCloser),
-      leads: leads.map(mapLead),
-      students: students.map(mapStudent),
-      payments: payments.map(mapPayment),
-      syncEvents: syncEvents.map(mapSyncEvent),
-      auditLogs: auditLogs.map(mapAuditLog),
+      closers: dashboard.closers.map(mapCloser),
+      leads: dashboard.leads.map(mapLead),
+      students: dashboard.students.map(mapStudent),
+      payments: dashboard.payments.map(mapPayment),
+      syncEvents: dashboard.syncEvents.map(mapSyncEvent),
+      auditLogs: dashboard.auditLogs.map(mapAuditLog),
+      integrity: dashboard.integrity,
+      fetchedAt: dashboard.fetchedAt,
       financeSync
     };
   },
