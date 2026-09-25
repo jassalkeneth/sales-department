@@ -54,7 +54,14 @@ class FinanceDataSyncService
             return true;
         })->values();
 
-        return DB::transaction(function () use ($rows, $sourceRows, $skipped): array {
+        $attribution = [
+            'explicitNaRecords' => $rows->filter(fn (array $row): bool => $this->closerName($row) === 'N/A')->count(),
+            'unassignedRecords' => $rows->filter(fn (array $row): bool => $this->closerName($row) === 'Unassigned')->count(),
+            'fallbackCloserRecords' => $rows->filter(fn (array $row): bool => ! $this->isMeaningfulCloser($row['income_closer'] ?? null)
+                && $this->isMeaningfulCloser($row['closer'] ?? null))->count(),
+        ];
+
+        return DB::transaction(function () use ($rows, $sourceRows, $skipped, $attribution): array {
             $now = now();
             $groups = $rows->groupBy(fn (array $row): string => $this->studentKey($row));
             $financePaymentIds = [];
@@ -146,6 +153,7 @@ class FinanceDataSyncService
                 'verifiedRecords' => $rows->where('verification_status', 'verified')->count(),
                 'pendingRecords' => $rows->where('verification_status', '!=', 'verified')->count(),
                 'skipped' => $skipped,
+                'attribution' => $attribution,
                 'sourceUpdatedAt' => $rows->max('updated_at'),
                 'syncedAt' => $now->toIso8601String(),
             ];
@@ -163,7 +171,26 @@ class FinanceDataSyncService
 
     private function closerName(array $row): string
     {
-        return trim((string) ($row['income_closer'] ?? $row['closer'] ?? '')) ?: 'Unassigned';
+        foreach ([$row['income_closer'] ?? null, $row['closer'] ?? null] as $candidate) {
+            if ($this->isMeaningfulCloser($candidate)) {
+                return trim((string) $candidate);
+            }
+        }
+
+        foreach ([$row['income_closer'] ?? null, $row['closer'] ?? null] as $candidate) {
+            if (in_array(Str::lower(trim((string) $candidate)), ['n/a', 'na'], true)) {
+                return 'N/A';
+            }
+        }
+
+        return 'Unassigned';
+    }
+
+    private function isMeaningfulCloser(mixed $value): bool
+    {
+        $normalized = Str::lower(trim((string) $value));
+
+        return $normalized !== '' && ! in_array($normalized, ['n/a', 'na', 'unassigned'], true);
     }
 
     private function programName(array $row): string

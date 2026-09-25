@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Lead, ProgramType, PaymentType } from '../types';
 import { useSalesWorkflow } from '../context/SalesWorkflowContext';
 import { CheckCircle2, X, ShieldAlert } from 'lucide-react';
+import { ProfileInitials } from './ProfileInitials';
 
 interface CloseStudentModalProps {
   lead: Lead;
@@ -124,12 +125,7 @@ export const CloseStudentModal: React.FC<CloseStudentModalProps> = ({
           <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
             <span className="text-slate-600 font-medium">Attributed Closer:</span>
             <div className="flex items-center gap-2">
-              <img
-                src={assignedCloser.avatarUrl}
-                alt={assignedCloser.name}
-                referrerPolicy="no-referrer"
-                className="h-5 w-5 rounded-full object-cover ring-1 ring-slate-200"
-              />
+              <ProfileInitials name={assignedCloser.name} className="h-5 w-5 text-[8px]" />
               <span className="font-semibold text-slate-900">{assignedCloser.name}</span>
             </div>
           </div>

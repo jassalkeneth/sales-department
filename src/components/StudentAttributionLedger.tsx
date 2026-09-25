@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { SortableTableHeader } from './SortableTableHeader';
 import { useSortableData } from '../hooks/useSortableData';
+import { ProfileInitials } from './ProfileInitials';
 
 export const StudentAttributionLedger: React.FC = () => {
   const {
@@ -230,12 +231,7 @@ export const StudentAttributionLedger: React.FC = () => {
 
                       <td className="py-3.5 px-4 font-sans">
                         <div className="flex items-center gap-2">
-                          <img
-                            src={row.closer.avatarUrl}
-                            alt={row.closer.name}
-                            referrerPolicy="no-referrer"
-                            className="h-6 w-6 rounded-full object-cover ring-1 ring-slate-200"
-                          />
+                          <ProfileInitials name={row.closer.name} className="h-6 w-6 text-[9px]" />
                           <span className="text-slate-800 text-xs font-medium">{row.closer.name}</span>
                         </div>
                       </td>

@@ -83,6 +83,11 @@ export interface FinanceSyncStatus {
   verifiedRecords: number;
   pendingRecords: number;
   skipped: Record<string, number>;
+  attribution: {
+    explicitNaRecords: number;
+    unassignedRecords: number;
+    fallbackCloserRecords: number;
+  };
   sourceUpdatedAt?: string;
   syncedAt: string;
 }

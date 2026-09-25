@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useSalesWorkflow } from '../context/SalesWorkflowContext';
 import { Lead, LeadStage, ProgramType } from '../types';
 import { CloseStudentModal } from './CloseStudentModal';
+import { ProfileInitials } from './ProfileInitials';
 import {
   Plus,
   Filter
@@ -189,12 +190,7 @@ export const LeadPipelineView: React.FC = () => {
                         {/* Footer */}
                         <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-[10px]">
                           <div className="flex items-center gap-1.5 text-slate-600">
-                            <img
-                              src={closer.avatarUrl}
-                              alt={closer.name}
-                              referrerPolicy="no-referrer"
-                              className="h-4 w-4 rounded-full object-cover ring-1 ring-slate-200"
-                            />
+                            <ProfileInitials name={closer.name} className="h-4 w-4 text-[6px]" />
                             <span className="truncate max-w-[70px]">{closer.name.split(' ')[0]}</span>
                           </div>
 

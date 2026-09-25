@@ -2,6 +2,7 @@ import React from 'react';
 import { useSalesWorkflow } from '../context/SalesWorkflowContext';
 import { User } from '../types';
 import salesLogo from '../assets/images/saleslogo.png';
+import { ProfileInitials } from './ProfileInitials';
 import {
   TrendingUp,
   ShieldCheck,
@@ -94,9 +95,7 @@ export const Navbar: React.FC<NavbarProps> = ({
         {/* Right Actions */}
         <div className="flex items-center gap-2.5">
           <div className="hidden xl:flex items-center gap-2 border-r border-slate-200 pr-2.5">
-            <div className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-100 text-[10px] font-bold text-emerald-800 ring-1 ring-emerald-200">
-              {currentUser.name.split(' ').map((part) => part[0]).join('').slice(0, 2).toUpperCase()}
-            </div>
+            <ProfileInitials name={currentUser.name} className="h-7 w-7 text-[10px]" />
             <div className="max-w-32">
               <p className="truncate text-[11px] font-semibold text-slate-800">{currentUser.name}</p>
               <p className="truncate text-[9px] uppercase tracking-wide text-slate-400">{currentUser.role.replace('_', ' ')}</p>

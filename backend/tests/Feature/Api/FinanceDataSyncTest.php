@@ -95,6 +95,55 @@ class FinanceDataSyncTest extends TestCase
             ->assertJsonPath('0.estimatedCommissions', 200);
     }
 
+    public function test_it_distinguishes_na_unassigned_and_valid_base_closer_fallbacks(): void
+    {
+        config([
+            'services.tmt_finance.base_url' => 'http://central.test',
+            'services.tmt_finance.api_key' => 'read-only-test-key',
+        ]);
+        Http::fake([
+            'http://central.test/api/transactions*' => Http::response([
+                'data' => [
+                    $this->transaction(301, 'OR-301', 1000, 'verified', 'New Premium', [
+                        'income_closer' => '',
+                        'closer' => 'Valid Base Closer',
+                    ]),
+                    $this->transaction(302, 'OR-302', 2000, 'verified', 'New Premium', [
+                        'person_canonical_id' => 'person-2',
+                        'income_closer' => 'N/A',
+                        'closer' => null,
+                    ]),
+                    $this->transaction(303, 'OR-303', 3000, 'for_verification', 'New Premium', [
+                        'person_canonical_id' => 'person-3',
+                        'income_closer' => null,
+                        'closer' => null,
+                    ]),
+                ],
+                'pagination' => ['page' => 1, 'totalPages' => 1, 'totalRows' => 3],
+            ]),
+        ]);
+        Sanctum::actingAs(User::factory()->create());
+
+        $this->postJson('/api/finance-sync')
+            ->assertOk()
+            ->assertJsonPath('attribution.fallbackCloserRecords', 1)
+            ->assertJsonPath('attribution.explicitNaRecords', 1)
+            ->assertJsonPath('attribution.unassignedRecords', 1);
+
+        $this->assertDatabaseHas('payments', [
+            'finance_transaction_id' => 301,
+            'closer_name' => 'Valid Base Closer',
+        ]);
+        $this->assertDatabaseHas('payments', [
+            'finance_transaction_id' => 302,
+            'closer_name' => 'N/A',
+        ]);
+        $this->assertDatabaseHas('payments', [
+            'finance_transaction_id' => 303,
+            'closer_name' => 'Unassigned',
+        ]);
+    }
+
     /** @param array<string, mixed> $overrides */
     private function transaction(int $id, string $reference, float $amount, string $verification, ?string $incomeProduct, array $overrides = []): array
     {

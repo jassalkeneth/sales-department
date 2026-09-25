@@ -11,6 +11,7 @@ import {
 import { CloseStudentModal } from './CloseStudentModal';
 import { SortableTableHeader } from './SortableTableHeader';
 import { useSortableData } from '../hooks/useSortableData';
+import { ProfileInitials } from './ProfileInitials';
 
 interface KpiOverviewProps {
   onNavigateTab: (tab: string) => void;
@@ -376,12 +377,7 @@ export const KpiOverview: React.FC<KpiOverviewProps> = ({ onNavigateTab }) => {
                           >
                             {perf.rank}
                           </span>
-                          <img
-                            src={perf.closer.avatarUrl}
-                            alt={perf.closer.name}
-                            referrerPolicy="no-referrer"
-                            className="h-7 w-7 rounded-full object-cover ring-1 ring-slate-200"
-                          />
+                          <ProfileInitials name={perf.closer.name} className="h-7 w-7 text-[10px]" />
                           <span className="font-semibold text-slate-900 text-xs">{perf.closer.name}</span>
                         </div>
                       </td>

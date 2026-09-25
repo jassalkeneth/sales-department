@@ -4,6 +4,7 @@ import { CloserPerformance } from '../types';
 import { Settings } from 'lucide-react';
 import { SortableTableHeader } from './SortableTableHeader';
 import { useSortableData } from '../hooks/useSortableData';
+import { ProfileInitials } from './ProfileInitials';
 
 export const CloserPerformanceView: React.FC = () => {
   const {
@@ -107,12 +108,7 @@ export const CloserPerformanceView: React.FC = () => {
               <div className="flex items-start justify-between mb-3">
                 <div className="flex items-center gap-3">
                   <div className="relative">
-                    <img
-                      src={perf.closer.avatarUrl}
-                      alt={perf.closer.name}
-                      referrerPolicy="no-referrer"
-                      className={`h-12 w-12 rounded-full object-cover ring-2 ${ringColor}`}
-                    />
+                    <ProfileInitials name={perf.closer.name} className={`h-12 w-12 text-sm ring-2 ${ringColor}`} />
                     <span className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-white text-[10px] font-mono font-bold text-slate-900 border border-slate-200 shadow-xs">
                       #{perf.rank}
                     </span>
@@ -218,12 +214,7 @@ export const CloserPerformanceView: React.FC = () => {
                 <tr key={perf.closer.id} className="hover:bg-slate-50/70 transition-colors">
                   <td className="py-3.5 px-4 font-sans">
                     <div className="flex items-center gap-2.5">
-                      <img
-                        src={perf.closer.avatarUrl}
-                        alt={perf.closer.name}
-                        referrerPolicy="no-referrer"
-                        className="h-8 w-8 rounded-full object-cover ring-1 ring-slate-200"
-                      />
+                      <ProfileInitials name={perf.closer.name} className="h-8 w-8 text-[11px]" />
                       <div>
                         <div className="font-semibold text-slate-900">{perf.closer.name}</div>
                         <div className="text-[10px] text-slate-500">{perf.closer.title}</div>

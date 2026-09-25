@@ -59,6 +59,12 @@ export const FinanceVerificationView: React.FC = () => {
         </div>
       )}
 
+      {financeSync?.attribution && (
+        <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs text-slate-700">
+          Closer attribution verified: <strong>{financeSync.attribution.fallbackCloserRecords.toLocaleString()}</strong> records recovered from the original closer field, <strong>{financeSync.attribution.explicitNaRecords.toLocaleString()}</strong> explicitly marked N/A by Finance, and <strong>{financeSync.attribution.unassignedRecords.toLocaleString()}</strong> genuinely unassigned records.
+        </div>
+      )}
+
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-1 rounded-lg border border-slate-200 bg-slate-100 p-1">
           <button onClick={() => setActiveTab('pending')} className={`rounded-md px-3 py-1.5 text-xs ${activeTab === 'pending' ? 'bg-white font-semibold shadow-xs' : 'text-slate-600'}`}>Pending ({pendingPayments.length})</button>
