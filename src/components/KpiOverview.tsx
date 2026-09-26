@@ -5,10 +5,12 @@ import {
   ArrowUpRight,
   CheckCircle2,
   ChevronRight,
+  ChevronLeft,
   ArrowUp,
   ArrowDown
 } from 'lucide-react';
 import { CloseStudentModal } from './CloseStudentModal';
+import { ProgramDetailModal } from './ProgramDetailModal';
 import { SortableTableHeader } from './SortableTableHeader';
 import { useSortableData } from '../hooks/useSortableData';
 import { ProfileInitials } from './ProfileInitials';
@@ -81,6 +83,11 @@ export const KpiOverview: React.FC<KpiOverviewProps> = ({ onNavigateTab }) => {
   } = useSalesWorkflow();
 
   const [closingLead, setClosingLead] = useState<any | null>(null);
+  const [selectedProgram, setSelectedProgram] = useState<string | null>(null);
+  const [closerPageSize, setCloserPageSize] = useState<number>(10);
+  const [closerPage, setCloserPage] = useState<number>(0);
+  const [programPageSize, setProgramPageSize] = useState<number>(10);
+  const [programPage, setProgramPage] = useState<number>(0);
 
   const pendingPayments = payments.filter((p) => p.status === 'pending');
   const verifiedPayments = filteredVerifiedPayments;
@@ -100,11 +107,25 @@ export const KpiOverview: React.FC<KpiOverviewProps> = ({ onNavigateTab }) => {
     gap: (performance) => performance.remainingSalesTarget
   }, { key: 'attainment', direction: 'desc' });
 
-  // Program Breakdown
+  // Program Breakdown — sorted by revenue desc so the top contributors surface first
   const programBreakdown = verifiedPayments.reduce((acc, p) => {
     acc[p.program] = (acc[p.program] || 0) + p.amount;
     return acc;
   }, {} as Record<string, number>);
+  const sortedPrograms = Object.entries(programBreakdown).sort(
+    ([, a], [, b]) => b - a
+  );
+  const programTotalPages = Math.max(1, Math.ceil(sortedPrograms.length / programPageSize));
+  const safeProgramPage = Math.min(programPage, programTotalPages - 1);
+  const programStart = safeProgramPage * programPageSize;
+  const programEnd = programStart + programPageSize;
+  const visiblePrograms = sortedPrograms.slice(programStart, programEnd);
+
+  const closerTotalPages = Math.max(1, Math.ceil(sortedCloserPerformances.length / closerPageSize));
+  const safeCloserPage = Math.min(closerPage, closerTotalPages - 1);
+  const closerStart = safeCloserPage * closerPageSize;
+  const closerEnd = closerStart + closerPageSize;
+  const visibleClosers = sortedCloserPerformances.slice(closerStart, closerEnd);
 
   const actionableLead = leads.find((l) => l.stage === 'negotiation' || l.stage === 'demo_call') || leads[0];
 
@@ -334,20 +355,43 @@ export const KpiOverview: React.FC<KpiOverviewProps> = ({ onNavigateTab }) => {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
         {/* Closer Leaderboard (8 cols) */}
         <div className="lg:col-span-8 emerald-glass-card rounded-2xl p-5">
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
             <h2 className="text-sm font-bold text-slate-900 tracking-tight flex items-center gap-2">
               <span>Closer Attainment</span>
+              <span className="text-[11px] font-mono font-medium text-slate-500 tabular-nums">
+                {sortedCloserPerformances.length === 0
+                  ? '(0)'
+                  : `(${closerStart + 1}–${Math.min(closerEnd, sortedCloserPerformances.length)} of ${sortedCloserPerformances.length})`}
+              </span>
             </h2>
-            <button
-              onClick={() => onNavigateTab('closers')}
-              className="text-xs text-emerald-700 hover:text-emerald-900 font-medium inline-flex items-center gap-0.5"
-            >
-              <span>Full Quotas</span>
-              <ChevronRight className="h-3 w-3" />
-            </button>
+            <div className="flex items-center gap-3">
+              <label className="text-[11px] text-slate-500 font-medium inline-flex items-center gap-1.5">
+                <span>Per page</span>
+                <select
+                  aria-label="Closers per page"
+                  value={closerPageSize}
+                  onChange={(event) => {
+                    setCloserPageSize(Number(event.target.value));
+                    setCloserPage(0);
+                  }}
+                  className="font-mono text-[11px] px-1.5 py-0.5 border border-slate-200 rounded bg-white focus:outline-none focus:border-emerald-500"
+                >
+                  <option value={5}>5</option>
+                  <option value={10}>10</option>
+                  <option value={25}>25</option>
+                </select>
+              </label>
+              <button
+                onClick={() => onNavigateTab('closers')}
+                className="text-xs text-emerald-700 hover:text-emerald-900 font-medium inline-flex items-center gap-0.5"
+              >
+                <span>Full Quotas</span>
+                <ChevronRight className="h-3 w-3" />
+              </button>
+            </div>
           </div>
 
-          <div className="data-table-scroll">
+          <div>
             <table className="w-full text-left text-xs">
               <thead>
                 <tr className="border-b border-slate-200 text-slate-500 font-medium bg-slate-50/50">
@@ -360,7 +404,7 @@ export const KpiOverview: React.FC<KpiOverviewProps> = ({ onNavigateTab }) => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 font-mono">
-                {sortedCloserPerformances.map((perf) => {
+                {visibleClosers.map((perf) => {
                   const isLeader = perf.rank === 1;
                   const is100 = perf.salesAchievementPct >= 100;
 
@@ -421,6 +465,36 @@ export const KpiOverview: React.FC<KpiOverviewProps> = ({ onNavigateTab }) => {
               </tbody>
             </table>
           </div>
+
+          {closerTotalPages > 1 && (
+            <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between gap-3">
+              <span className="text-[11px] font-mono text-slate-500 tabular-nums">
+                Page {safeCloserPage + 1} of {closerTotalPages}
+              </span>
+              <div className="inline-flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setCloserPage((page) => Math.max(0, page - 1))}
+                  disabled={safeCloserPage === 0}
+                  className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-medium text-slate-700 bg-white border border-slate-200 rounded hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  aria-label="Previous page"
+                >
+                  <ChevronLeft className="h-3 w-3" />
+                  <span>Prev</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCloserPage((page) => Math.min(closerTotalPages - 1, page + 1))}
+                  disabled={safeCloserPage >= closerTotalPages - 1}
+                  className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  aria-label="Next page"
+                >
+                  <span>Next</span>
+                  <ChevronRight className="h-3 w-3" />
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Right Column: Pending Verification & Programs (4 cols) */}
@@ -475,16 +549,45 @@ export const KpiOverview: React.FC<KpiOverviewProps> = ({ onNavigateTab }) => {
 
           {/* Clean Program Revenue Distribution */}
           <div className="emerald-glass-card rounded-2xl p-5">
-            <span className="text-xs font-bold text-slate-900 uppercase tracking-wider block mb-3">
-              Revenue by Program
-            </span>
+            <div className="flex items-center justify-between mb-3 gap-2 flex-wrap">
+              <span className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+                Revenue by Program
+                <span className="ml-1.5 text-[10px] font-mono font-medium text-slate-500 normal-case tracking-normal tabular-nums">
+                  {sortedPrograms.length === 0
+                    ? '(0)'
+                    : `(${programStart + 1}–${Math.min(programEnd, sortedPrograms.length)} of ${sortedPrograms.length})`}
+                </span>
+              </span>
+              <label className="text-[11px] text-slate-500 font-medium inline-flex items-center gap-1.5">
+                <span>Per page</span>
+                <select
+                  aria-label="Programs per page"
+                  value={programPageSize}
+                  onChange={(event) => {
+                    setProgramPageSize(Number(event.target.value));
+                    setProgramPage(0);
+                  }}
+                  className="font-mono text-[11px] px-1.5 py-0.5 border border-slate-200 rounded bg-white focus:outline-none focus:border-emerald-500"
+                >
+                  <option value={5}>5</option>
+                  <option value={10}>10</option>
+                  <option value={25}>25</option>
+                </select>
+              </label>
+            </div>
             <div className="space-y-3 font-mono text-xs">
-              {Object.entries(programBreakdown).map(([prog, amount]) => {
+              {visiblePrograms.map(([prog, amount]) => {
                 const pct = totalVerifiedSales > 0 ? (amount / totalVerifiedSales) * 100 : 0;
                 return (
-                  <div key={prog}>
+                  <button
+                    key={prog}
+                    type="button"
+                    onClick={() => setSelectedProgram(prog)}
+                    className="w-full text-left rounded-lg px-2 py-1.5 -mx-2 hover:bg-emerald-50/60 focus:bg-emerald-50 focus:outline-none focus:ring-2 focus:ring-emerald-500/40 transition-colors"
+                    aria-label={`View details for ${prog}`}
+                  >
                     <div className="flex items-center justify-between text-xs mb-1">
-                      <span className="font-sans text-slate-700 font-medium truncate max-w-[160px]">{prog}</span>
+                      <span className="font-sans text-slate-700 font-medium truncate max-w-[160px] group-hover:text-emerald-800">{prog}</span>
                       <span className="font-bold text-slate-900 tabular-nums">₱{amount.toLocaleString()}</span>
                     </div>
                     <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden border border-slate-200">
@@ -493,10 +596,40 @@ export const KpiOverview: React.FC<KpiOverviewProps> = ({ onNavigateTab }) => {
                         style={{ width: `${pct}%` }}
                       />
                     </div>
-                  </div>
+                  </button>
                 );
               })}
             </div>
+
+            {programTotalPages > 1 && (
+              <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between gap-3">
+                <span className="text-[11px] font-mono text-slate-500 tabular-nums">
+                  Page {safeProgramPage + 1} of {programTotalPages}
+                </span>
+                <div className="inline-flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setProgramPage((page) => Math.max(0, page - 1))}
+                    disabled={safeProgramPage === 0}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-medium text-slate-700 bg-white border border-slate-200 rounded hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    aria-label="Previous programs page"
+                  >
+                    <ChevronLeft className="h-3 w-3" />
+                    <span>Prev</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setProgramPage((page) => Math.min(programTotalPages - 1, page + 1))}
+                    disabled={safeProgramPage >= programTotalPages - 1}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    aria-label="Next programs page"
+                  >
+                    <span>Next</span>
+                    <ChevronRight className="h-3 w-3" />
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -507,6 +640,15 @@ export const KpiOverview: React.FC<KpiOverviewProps> = ({ onNavigateTab }) => {
           lead={closingLead}
           onClose={() => setClosingLead(null)}
           onSuccess={() => setClosingLead(null)}
+        />
+      )}
+
+      {selectedProgram && (
+        <ProgramDetailModal
+          program={selectedProgram}
+          payments={verifiedPayments}
+          totalVerifiedSales={totalVerifiedSales}
+          onClose={() => setSelectedProgram(null)}
         />
       )}
     </div>
